@@ -166,20 +166,26 @@ const extractBillingDay = (billingStr) => {
 // 強制解除 iOS PWA 輸入框封印與防左右滾動
 const GlobalStyles = () => (
   <style dangerouslySetInnerHTML={{__html: `
-    html, body {
+    body, html, #root {
       margin: 0;
       padding: 0;
+      width: 100%;
       background-color: #e5e7eb;
       -webkit-tap-highlight-color: transparent;
-      /* 絕對不可在全域加上 height: 100% 或 overflow 相關屬性，會導致 iOS 鍵盤無法聚焦 */
+      -webkit-overflow-scrolling: touch;
+      overflow-x: hidden; /* 全域強制防止左右滑動 */
     }
     input, textarea, select {
       font-size: 16px !important; /* 防自動放大 */
+      -webkit-appearance: none;
+      -webkit-user-select: text !important;
+      user-select: text !important;
+      pointer-events: auto !important;
+      touch-action: manipulation !important;
     }
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
   `}} />
 );
 
@@ -820,17 +826,17 @@ export default function App() {
 
   if (isLoading && !user) {
     return (
-      <div className="w-full min-h-screen flex items-center justify-center bg-gray-50 text-emerald-600 relative">
+      <div className="w-full min-h-[100dvh] flex items-center justify-center bg-gray-50 text-emerald-600 relative">
         <GlobalStyles />
         載入中...
       </div>
     );
   }
 
-  // 登入畫面修改：移除所有 overflow 限制，回歸最單純的 flex 排版，徹底解決 iOS 點擊失效問題
+  // 登入畫面修改：使用 min-h-[100dvh] 確保完美覆蓋螢幕
   if (!user) {
     return (
-      <div className="min-h-screen w-full bg-gray-200 flex justify-center items-center p-4">
+      <div className="min-h-[100dvh] w-full bg-gray-200 flex justify-center items-center p-4 overflow-x-hidden">
         <GlobalStyles />
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 space-y-6">
           <div className="text-center">
@@ -883,16 +889,16 @@ export default function App() {
 
   if (isLoading || !settingsLoaded) {
      return (
-       <div className="w-full min-h-screen flex items-center justify-center bg-gray-50 text-emerald-600 relative">
+       <div className="w-full h-[100dvh] flex items-center justify-center bg-gray-50 text-emerald-600 relative overflow-x-hidden">
          <GlobalStyles />
          讀取資料中...
        </div>
      );
   }
 
-  // 主畫面也改回使用 fixed inset-0 鎖定 App 體驗
+  // 主畫面修改：使用 h-[100dvh] 動態高度，適應 iOS 底部工具列
   return (
-    <div className="fixed inset-0 bg-gray-200 flex justify-center">
+    <div className="w-full h-[100dvh] bg-gray-200 flex justify-center overflow-x-hidden">
       <GlobalStyles />
       <div className="w-full max-w-md bg-gray-50 relative flex flex-col h-full shadow-2xl overflow-hidden">
         
@@ -1494,15 +1500,15 @@ export default function App() {
         {/* ========================================== */}
         <button
           onClick={() => openExpenseModal()}
-          className="absolute bottom-20 right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-400 hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all z-30"
+          className="absolute bottom-[calc(76px+env(safe-area-inset-bottom))] right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-400 hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all z-30"
         >
           <Plus size={30} />
         </button>
 
         {/* ========================================== */}
-        {/* 底部導覽列 - 三顆按鈕完美平均分配 */}
+        {/* 底部導覽列 - 加入動態安全區域高度 padding */}
         {/* ========================================== */}
-        <div className="mt-auto w-full bg-white border-t border-gray-200 px-6 py-3 grid grid-cols-3 place-items-center z-20 pb-safe shrink-0">
+        <div className="mt-auto w-full bg-white border-t border-gray-200 px-6 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] grid grid-cols-3 place-items-center z-20 shrink-0">
           <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'list' ? 'text-emerald-600' : 'text-gray-400'}`}>
             <List size={24} /><span className="text-xs font-bold">明細</span>
           </button>
@@ -1517,7 +1523,7 @@ export default function App() {
         {/* 新增/編輯支出 Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity">
-            <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 pb-[calc(24px+env(safe-area-inset-bottom))] md:pb-6 shadow-2xl overflow-y-auto max-h-[90dvh]">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">{editingExpenseId ? '編輯明細' : '新增支出'}</h2>
                 <button onClick={() => setIsModalOpen(false)} className="p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200"><X size={20} /></button>
