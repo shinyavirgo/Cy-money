@@ -7,7 +7,7 @@ import {
   MoreHorizontal, AlertCircle, Settings, Edit2, Gift, TrendingUp, Save, ShoppingCart, Coffee, Heart, Briefcase, 
   Plane, Landmark, Wallet, Banknote, PiggyBank, Monitor, Smartphone, Bus, Train, Scissors, Camera, Music, Ticket, 
   Umbrella, ShoppingBag, Package, Globe, Map, Zap, Award, Star, Palette, Upload, Download, FileText, LogOut,
-  User
+  User, Wand2, Loader2
 } from 'lucide-react';
 
 // ==========================================
@@ -18,37 +18,34 @@ const DEFAULT_BANK_CARDS = {
   '聯邦': [{ name: '賴點卡', billing: '每月9日', limit: null, rewardCycle: 'calendar', rewards: [
     { id: 'r1', name: '國內', type: 'cashback', rate: 1, limit: null },
     { id: 'r2', name: '國外', type: 'cashback', rate: 3, limit: null },
-    { id: 'r3', name: 'ＬＰ偶數加碼', type: 'cashback', rate: 8.8, limit: 3000 }
-  ], iconName: 'CreditCard', color: 'bg-emerald-100 text-emerald-600' }], 
+{ id: 'r3', name: 'ＬＰ偶數加碼', type: 'cashback', rate: 8.8, limit: 3000 }
+  ], iconName: 'CreditCard', color: 'bg-blue-100 text-blue-600' }], 
   '星展': [
     { name: '傳說卡', billing: '每月9日', limit: null, rewardCycle: 'calendar', rewards: [
-      { id: 'r1', name: '國內', type: 'cashback', rate: 1.2, limit: null },
-      { id: 'r2', name: '國外', type: 'cashback', rate: 2.5, limit: null },
-      { id: 'r3', name: '加碼', type: 'cashback', rate: 5, limit: 11363 }
-    ], iconName: 'Star', color: 'bg-yellow-100 text-yellow-600' },
+{ id: 'r1', name: '國內', type: 'cashback', rate: 1.2, limit: null },
+    { id: 'r2', name: '國外', type: 'cashback', rate: 2.5, limit: null },
+{ id: 'r3', name: '加碼', type: 'cashback', rate: 5, limit: 11363 }
+], iconName: 'Star', color: 'bg-yellow-100 text-yellow-600' },
     { name: '饗樂卡', billing: '每月9日', limit: null, rewardCycle: 'billing', rewards: [
       { id: 'r1', name: '基本回饋', type: 'points', spend: 30, earn: 1, unit: '活利積分', limit: null },
       { id: 'r2', name: '指定品牌加碼', type: 'points', spend: 30, earn: 2, unit: '活利積分', limit: null }
     ], iconName: 'Gamepad2', color: 'bg-red-100 text-red-600' },
     { name: '永續卡', billing: '每月9日', limit: null, rewardCycle: 'calendar', rewards: [
-      { id: 'r1', name: '國內外', type: 'cashback', rate: 1, limit: null },
-      { id: 'r2', name: '日韓泰新美歐', type: 'cashback', rate: 4, limit: 15000 }
-    ], iconName: 'Globe', color: 'bg-teal-100 text-teal-600' }
+{ id: 'r1', name: '國內外', type: 'cashback', rate: 1, limit: null },
+    { id: 'r2', name: '日韓泰新美歐', type: 'cashback', rate: 4, limit: 15000 }], iconName: 'Globe', color: 'bg-teal-100 text-teal-600' }
   ],
   '元大': [{ name: '鑽金卡', billing: '每月10日', limit: null, rewardCycle: 'calendar', rewards: [
-    { id: 'r1', name: '國內', type: 'cashback', rate: 1.2, limit: null },
-    { id: 'r2', name: '國外', type: 'cashback', rate: 2.2, limit: null }
-  ], iconName: 'Award', color: 'bg-amber-100 text-amber-600' }],
+ { id: 'r1', name: '國內', type: 'cashback', rate: 1.2, limit: null },
+    { id: 'r2', name: '國外', type: 'cashback', rate: 2.2, limit: null },], iconName: 'Award', color: 'bg-amber-100 text-amber-600' }],
   '富邦': [
     { name: '好市多', billing: '每月12日', limit: null, rewardCycle: 'calendar', rewards: [
       { id: 'r1', name: '店內', type: 'cashback', rate: 2, limit: null },
-      { id: 'r2', name: '店外', type: 'cashback', rate: 1, limit: null },
-      { id: 'r3', name: '網購加油', type: 'cashback', rate: 3, limit: null }
+    { id: 'r2', name: '店外', type: 'cashback', rate: 1, limit: null },
+{ id: 'r3', name: '網購加油', type: 'cashback', rate: 3, limit: null }
     ], iconName: 'ShoppingCart', color: 'bg-blue-100 text-blue-600' },
     { name: '數位卡', billing: '每月12日', limit: null, rewardCycle: 'calendar', rewards: [
-      { id: 'r1', name: '一般、保費', type: 'cashback', rate: 0.5, limit: null },
-      { id: 'r2', name: '數位', type: 'cashback', rate: 1.5, limit: 20000 }
-    ], iconName: 'Monitor', color: 'bg-blue-100 text-blue-600' },
+{ id: 'r1', name: '一般、保費', type: 'cashback', rate: 0.5, limit: null },
+    { id: 'r2', name: '數位', type: 'cashback', rate: 1.5, limit: 20000 },], iconName: 'Monitor', color: 'bg-blue-100 text-blue-600' },
     { name: 'J卡', billing: '每月12日', limit: null, rewardCycle: 'calendar', rewards: [
       { id: 'r1', name: '國內外', type: 'cashback', rate: 1, limit: null },
       { id: 'r2', name: '日韓泰', type: 'cashback', rate: 3, limit: null }
@@ -57,25 +54,25 @@ const DEFAULT_BANK_CARDS = {
   '新光': [{ name: 'OU卡', billing: '每月12日', limit: null, rewardCycle: 'calendar', rewards: [], iconName: 'CreditCard', color: 'bg-rose-100 text-rose-600' }],
   '永豐': [
     { name: '運動卡', billing: '每月14日', limit: null, rewardCycle: 'calendar', rewards: [
-      { id: 'r1', name: '一般', type: 'cashback', rate: 1, limit: null },
+{ id: 'r1', name: '一般', type: 'cashback', rate: 1, limit: null },
       { id: 'r2', name: '運動', type: 'cashback', rate: 1, limit: 5000 },
-      { id: 'r3', name: 'ＡＰ加碼', type: 'cashback', rate: 3, limit: 10000 }
-    ], iconName: 'Heart', color: 'bg-rose-100 text-rose-600' },
+{ id: 'r3', name: 'ＡＰ加碼', type: 'cashback', rate: 3, limit: 10000 }
+], iconName: 'Heart', color: 'bg-rose-100 text-rose-600' },
     { name: '大戶卡', billing: '每月14日', limit: null, rewardCycle: 'billing', rewards: [
       { id: 'r1', name: '國內', type: 'cashback', rate: 1, limit: null },
       { id: 'r2', name: '國外', type: 'cashback', rate: 2, limit: null },
       { id: 'r3', name: '大戶ＰＳ加碼', type: 'cashback', rate: 4, limit: 25000 }
     ], iconName: 'Landmark', color: 'bg-gray-100 text-gray-800' },
     { name: '大威卡', billing: '每月14日', limit: null, rewardCycle: 'billing', rewards: [
-      { id: 'r1', name: '國內', type: 'cashback', rate: 0.5, limit: null },
+{ id: 'r1', name: '國內', type: 'cashback', rate: 0.5, limit: null },
       { id: 'r2', name: '國外', type: 'cashback', rate: 2.5, limit: null },
       { id: 'r3', name: 'ＬＰ加碼', type: 'cashback', rate: 1.5, limit: 20000 }
-    ], iconName: 'CreditCard', color: 'bg-slate-100 text-slate-600' },
+], iconName: 'CreditCard', color: 'bg-slate-100 text-slate-600' },
     { name: '幣倍卡', billing: '每月14日', limit: null, rewardCycle: 'calendar', rewards: [
-      { id: 'r1', name: '國內', type: 'cashback', rate: 1, limit: null },
+{ id: 'r1', name: '國內', type: 'cashback', rate: 1, limit: null },
       { id: 'r2', name: '國外', type: 'cashback', rate: 2, limit: null },
       { id: 'r3', name: '指定', type: 'cashback', rate: 4, limit: 20000 }
-    ], iconName: 'Coins', color: 'bg-yellow-100 text-yellow-600' }
+], iconName: 'Coins', color: 'bg-yellow-100 text-yellow-600' }
   ],
   '玉山': [
     { name: 'UBEAR卡', billing: '每月21日', limit: null, rewardCycle: 'billing', rewards: [
@@ -85,19 +82,18 @@ const DEFAULT_BANK_CARDS = {
     { name: 'UNI卡', billing: '每月21日', limit: null, rewardCycle: 'billing', rewards: [
       { id: 'r1', name: '一般', type: 'cashback', rate: 1, limit: null },
       { id: 'r2', name: '簡單選', type: 'cashback', rate: 2, limit: 50000 },
-      { id: 'r3', name: '任意選', type: 'cashback', rate: 2.5, limit: 40000 },
+{ id: 'r3', name: '任意選', type: 'cashback', rate: 2.5, limit: 40000 },
       { id: 'r4', name: 'ＵＰ選', type: 'cashback', rate: 3.5, limit: 142857 }
     ], iconName: 'CreditCard', color: 'bg-teal-100 text-teal-600' },
     { name: 'PI卡', billing: '每月21日', limit: null, rewardCycle: 'calendar', rewards: [
-      { id: 'r1', name: '國內外', type: 'cashback', rate: 1, limit: null },
+{ id: 'r1', name: '國內外', type: 'cashback', rate: 1, limit: null },
       { id: 'r2', name: '保費', type: 'cashback', rate: 1.2, limit: null },
-      { id: 'r3', name: 'ＰＩ全家', type: 'cashback', rate: 5, limit: 2000 }
-    ], iconName: 'Zap', color: 'bg-blue-100 text-blue-600' }
+{ id: 'r3', name: 'ＰＩ全家', type: 'cashback', rate: 5, limit: 2000 }], iconName: 'Zap', color: 'bg-blue-100 text-blue-600' }
   ],
   '中信': [{ name: 'LP卡', billing: '每月25日', limit: null, rewardCycle: 'calendar', rewards: [
-    { id: 'r1', name: '國內外', type: 'cashback', rate: 1, limit: null },
-    { id: 'r2', name: '國外實體', type: 'cashback', rate: 2.8, limit: null }
-  ], iconName: 'CreditCard', color: 'bg-lime-100 text-lime-600' }],
+{ id: 'r1', name: '國內外', type: 'cashback', rate: 1, limit: null },
+      { id: 'r2', name: '國外實體', type: 'cashback', rate: 2.8, limit: null }
+], iconName: 'CreditCard', color: 'bg-lime-100 text-lime-600' }],
   '國泰': [
     { name: 'CUBE卡', billing: '每月27日', limit: null, rewardCycle: 'calendar', rewards: [], iconName: 'Package', color: 'bg-green-100 text-green-600' }
   ],
@@ -163,14 +159,15 @@ const extractBillingDay = (billingStr) => {
   return match ? parseInt(match[0], 10) : 999;
 };
 
-// 強制解除 iOS PWA 輸入框封印與防左右滾動
+// 強制解除 iOS PWA 輸入框封印與防左右滾動 (並換上海洋藍背景)
 const GlobalStyles = () => (
   <style dangerouslySetInnerHTML={{__html: `
     body, html, #root {
       margin: 0;
       padding: 0;
       width: 100%;
-      background-color: #e5e7eb;
+      height: 100%;
+      background-color: #2563eb; /* 修改底層為海洋藍，填補動態島 */
       -webkit-tap-highlight-color: transparent;
       -webkit-overflow-scrolling: touch;
       overflow-x: hidden; /* 全域強制防止左右滑動 */
@@ -186,6 +183,7 @@ const GlobalStyles = () => (
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
   `}} />
 );
 
@@ -266,7 +264,7 @@ export default function App() {
         { name: 'apple-mobile-web-app-capable', content: 'yes' },
         { name: 'mobile-web-app-capable', content: 'yes' },
         { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
-        { name: 'theme-color', content: '#059669' }
+        { name: 'theme-color', content: '#2563eb' } // 修改主題色為海洋藍
       ];
 
       metaTags.forEach(({ name, content }) => {
@@ -285,7 +283,7 @@ export default function App() {
         short_name: "記帳",
         display: "standalone",
         background_color: "#e5e7eb",
-        theme_color: "#059669"
+        theme_color: "#2563eb" // 修改主題色為海洋藍
       };
       const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
       const manifestURL = URL.createObjectURL(blob);
@@ -826,21 +824,21 @@ export default function App() {
 
   if (isLoading && !user) {
     return (
-      <div className="w-full min-h-[100dvh] flex items-center justify-center bg-gray-50 text-emerald-600 relative">
+      <div className="w-full min-h-[100dvh] flex items-center justify-center bg-blue-600 text-white relative">
         <GlobalStyles />
-        載入中...
+        <Loader2 className="animate-spin mr-2" size={20} /> 載入中...
       </div>
     );
   }
 
-  // 登入畫面修改：使用 min-h-[100dvh] 確保完美覆蓋螢幕
+  // 登入畫面修改：使用海洋藍背景
   if (!user) {
     return (
-      <div className="min-h-[100dvh] w-full bg-gray-200 flex justify-center items-center p-4 overflow-x-hidden">
+      <div className="min-h-[100dvh] w-full bg-blue-600 flex justify-center items-center p-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         <GlobalStyles />
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 space-y-6">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 space-y-6">
           <div className="text-center">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
               <Wallet size={32} />
             </div>
             <h1 className="text-2xl font-bold text-gray-800">雲端記帳小幫手</h1>
@@ -861,7 +859,7 @@ export default function App() {
                 value={authEmail} 
                 onChange={(e) => setAuthEmail(e.target.value)} 
                 required 
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-[16px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition"
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-[16px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
                 placeholder="your@email.com"
               />
             </div>
@@ -872,14 +870,14 @@ export default function App() {
                 value={authPassword} 
                 onChange={(e) => setAuthPassword(e.target.value)} 
                 required 
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-[16px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition"
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-[16px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
                 placeholder="請輸入至少6位數密碼"
               />
             </div>
             
             <div className="flex gap-2 pt-2">
-               <button type="button" onClick={(e) => handleAuthSubmit(e, false)} disabled={!authEmail || !authPassword} className="flex-1 bg-indigo-100 text-indigo-700 py-3 rounded-xl text-sm font-bold hover:bg-indigo-200 transition disabled:opacity-50">登入帳號</button>
-               <button type="button" onClick={(e) => handleAuthSubmit(e, true)} disabled={!authEmail || !authPassword} className="flex-1 bg-indigo-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-indigo-700 transition disabled:opacity-50">註冊並綁定</button>
+               <button type="button" onClick={(e) => handleAuthSubmit(e, false)} disabled={!authEmail || !authPassword} className="flex-1 bg-indigo-50 text-indigo-700 py-3 rounded-xl text-sm font-bold hover:bg-indigo-100 transition disabled:opacity-50">登入帳號</button>
+               <button type="button" onClick={(e) => handleAuthSubmit(e, true)} disabled={!authEmail || !authPassword} className="flex-1 bg-blue-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-blue-700 transition disabled:opacity-50 shadow-md">註冊並綁定</button>
             </div>
           </form>
         </div>
@@ -889,41 +887,42 @@ export default function App() {
 
   if (isLoading || !settingsLoaded) {
      return (
-       <div className="w-full h-[100dvh] flex items-center justify-center bg-gray-50 text-emerald-600 relative overflow-x-hidden">
+       <div className="w-full min-h-[100dvh] flex items-center justify-center bg-blue-600 text-white relative">
          <GlobalStyles />
-         讀取資料中...
+         <Loader2 className="animate-spin mr-2" size={20} /> 讀取資料中...
        </div>
      );
   }
 
-  // 主畫面修改：使用 h-[100dvh] 動態高度，適應 iOS 底部工具列
+  // 主畫面修改：採用原生 Document 滾動，配合 Sticky 頭部與 Fixed 底部
   return (
-    <div className="w-full h-[100dvh] bg-gray-200 flex justify-center overflow-x-hidden">
+    <div className="w-full min-h-[100dvh] bg-[#2563eb] flex justify-center">
       <GlobalStyles />
-      <div className="w-full max-w-md bg-gray-50 relative flex flex-col h-full shadow-2xl overflow-hidden">
+      <div className="w-full max-w-md bg-gray-50 relative flex flex-col min-h-[100dvh] shadow-2xl">
         
-        {/* Header */}
+        {/* Header - 吸頂效果並延伸至動態島 */}
         {activeTab !== 'settings' && (
-          <header className="bg-emerald-600 text-white pt-6 pb-4 px-6 rounded-b-3xl shadow-md z-10 shrink-0">
-            <div className="flex items-center justify-between bg-emerald-700/50 rounded-2xl p-1 mb-6 mt-4">
-              <button onClick={() => { const [y, m] = currentMonth.split('-').map(Number); setCurrentMonth(`${new Date(y, m - 2, 1).getFullYear()}-${String(new Date(y, m - 2, 1).getMonth() + 1).padStart(2, '0')}`); }} className="p-2 hover:bg-emerald-800 rounded-xl transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
+          <header className="sticky top-0 bg-blue-600 text-white pt-[calc(1.5rem+env(safe-area-inset-top))] pb-4 px-6 rounded-b-3xl shadow-md z-40 shrink-0">
+            <div className="flex items-center justify-between bg-blue-700/50 rounded-2xl p-1 mb-6 mt-2">
+              <button onClick={() => { const [y, m] = currentMonth.split('-').map(Number); setCurrentMonth(`${new Date(y, m - 2, 1).getFullYear()}-${String(new Date(y, m - 2, 1).getMonth() + 1).padStart(2, '0')}`); }} className="p-2 hover:bg-blue-800 rounded-xl transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
               <div 
-                className="font-semibold text-lg flex items-center gap-2 cursor-pointer hover:text-emerald-200 transition"
+                className="font-semibold text-lg flex items-center gap-2 cursor-pointer hover:text-blue-200 transition"
                 onClick={handleJumpToCurrentMonth}
                 title="回到本月"
               >
                 <Calendar size={18} />{currentMonth.replace('-', '年')}月
               </div>
-              <button onClick={() => { const [y, m] = currentMonth.split('-').map(Number); setCurrentMonth(`${new Date(y, m, 1).getFullYear()}-${String(new Date(y, m, 1).getMonth() + 1).padStart(2, '0')}`); }} className="p-2 hover:bg-emerald-800 rounded-xl transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg></button>
+              <button onClick={() => { const [y, m] = currentMonth.split('-').map(Number); setCurrentMonth(`${new Date(y, m, 1).getFullYear()}-${String(new Date(y, m, 1).getMonth() + 1).padStart(2, '0')}`); }} className="p-2 hover:bg-blue-800 rounded-xl transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg></button>
             </div>
             <div className="text-center">
-              <p className="text-emerald-100 text-sm mb-1">本月總支出</p>
+              <p className="text-blue-100 text-sm mb-1">本月總支出</p>
               <p className="text-4xl font-bold font-mono"><span className="text-xl mr-1">$</span>{totalMonth.toLocaleString()}</p>
             </div>
           </header>
         )}
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 custom-scrollbar pb-32">
+        {/* 內容區 - 讓系統自然滾動，並預留底部導覽列的空間 */}
+        <main className="flex-1 w-full p-4 pb-[calc(120px+env(safe-area-inset-bottom))]">
           
           {/* == 明細頁 == */}
           {activeTab === 'list' && (
@@ -954,11 +953,11 @@ export default function App() {
                   return (
                     <div 
                       key={expense.id} 
-                      className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 group transition hover:border-emerald-300 relative"
+                      className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 group transition hover:border-blue-300 relative"
                     >
                       <div className="flex flex-col items-center justify-center shrink-0 w-12 bg-gray-50 h-12 rounded-xl">
                         <span className="text-gray-400 text-[10px] uppercase font-bold leading-none">{expense.date.substring(5, 7)}月</span>
-                        <span className="text-emerald-700 text-xl font-black leading-tight mt-0.5">{expense.date.substring(8, 10)}</span>
+                        <span className="text-blue-700 text-xl font-black leading-tight mt-0.5">{expense.date.substring(8, 10)}</span>
                       </div>
 
                       <div className="w-[1px] h-10 bg-gray-100 shrink-0"></div>
@@ -989,7 +988,7 @@ export default function App() {
                       <div className="flex flex-col items-end gap-1 shrink-0 ml-1">
                         <span className="font-bold text-lg text-gray-800 font-mono">-${expense.amount}</span>
                         <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition absolute right-3 bottom-2 md:relative md:right-auto md:bottom-auto md:mt-2">
-                           <button type="button" onPointerDown={() => openExpenseModal(expense)} className="text-gray-400 hover:text-emerald-600 p-1 bg-white border border-gray-200 rounded-full shadow-sm z-10 cursor-pointer"><Edit2 size={12} /></button>
+                           <button type="button" onPointerDown={() => openExpenseModal(expense)} className="text-gray-400 hover:text-blue-600 p-1 bg-white border border-gray-200 rounded-full shadow-sm z-10 cursor-pointer"><Edit2 size={12} /></button>
                            <button type="button" onPointerDown={(e) => handleDelete(expense.id, e)} className="text-red-400 hover:text-red-600 p-1 bg-white border border-gray-200 rounded-full shadow-sm z-10 cursor-pointer"><Trash2 size={12} /></button>
                         </div>
                       </div>
@@ -1076,12 +1075,12 @@ export default function App() {
                                 <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
                                   <div className="flex justify-between items-end mb-1.5">
                                     <span className="text-[11px] font-bold text-gray-600 flex items-center gap-1">💳 總信用額度</span>
-                                    <span className={`font-mono text-xs ${card.limit - usedAmount < 0 ? 'text-red-500' : 'text-emerald-600 font-bold'}`}>
+                                    <span className={`font-mono text-xs ${card.limit - usedAmount < 0 ? 'text-red-500' : 'text-blue-600 font-bold'}`}>
                                       剩餘 ${(card.limit - usedAmount).toLocaleString()} <span className="text-gray-400 font-normal text-[10px]">/ {card.limit.toLocaleString()}</span>
                                     </span>
                                   </div>
                                   <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                                    <div className={`h-1.5 rounded-full transition-all ${card.limit - usedAmount < 0 ? 'bg-red-500' : ((usedAmount/card.limit) > 0.8 ? 'bg-orange-400' : 'bg-emerald-400')}`} style={{ width: `${Math.min(100, (usedAmount / card.limit) * 100)}%` }}></div>
+                                    <div className={`h-1.5 rounded-full transition-all ${card.limit - usedAmount < 0 ? 'bg-red-500' : ((usedAmount/card.limit) > 0.8 ? 'bg-orange-400' : 'bg-blue-400')}`} style={{ width: `${Math.min(100, (usedAmount / card.limit) * 100)}%` }}></div>
                                   </div>
                                 </div>
                               )}
@@ -1177,11 +1176,11 @@ export default function App() {
           {/* == 設定頁 == */}
           {activeTab === 'settings' && (
             <div className="space-y-6 pt-4">
-              <h2 className="text-2xl font-bold text-gray-800 px-2 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
+              <h2 className="text-2xl font-bold text-gray-800 px-2 flex items-center gap-2"><Settings size={28} className="text-blue-600" /> 系統設定</h2>
 
               {/* === 帳號與雲端同步區塊 === */}
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
-                <h3 className="text-gray-700 font-bold flex items-center gap-2 mb-4"><User size={18} className="text-indigo-500" />帳號與雲端同步</h3>
+                <h3 className="text-gray-700 font-bold flex items-center gap-2 mb-4"><User size={18} className="text-blue-500" />帳號與雲端同步</h3>
                 
                 {user && !user.isAnonymous ? (
                    <div className="flex flex-col gap-3">
@@ -1199,13 +1198,13 @@ export default function App() {
                      {authError && <div className="text-red-600 text-xs bg-red-50 p-2 rounded-lg border border-red-100">{authError}</div>}
                      
                      <div className="space-y-2">
-                       <input type="email" placeholder="輸入 Email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full border border-gray-300 rounded-xl px-3 py-2 text-[16px] outline-none focus:border-indigo-500 transition"/>
-                       <input type="password" placeholder="輸入密碼 (至少6位數)" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} className="w-full border border-gray-300 rounded-xl px-3 py-2 text-[16px] outline-none focus:border-indigo-500 transition"/>
+                       <input type="email" placeholder="輸入 Email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full border border-gray-300 rounded-xl px-3 py-2 text-[16px] outline-none focus:border-blue-500 transition"/>
+                       <input type="password" placeholder="輸入密碼 (至少6位數)" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} className="w-full border border-gray-300 rounded-xl px-3 py-2 text-[16px] outline-none focus:border-blue-500 transition"/>
                      </div>
                      
                      <div className="flex gap-2 pt-1">
-                        <button onClick={(e) => handleAuthSubmit(e, false)} disabled={!authEmail || !authPassword} className="flex-1 bg-indigo-100 text-indigo-700 py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-200 transition disabled:opacity-50">登入帳號</button>
-                        <button onClick={(e) => handleAuthSubmit(e, true)} disabled={!authEmail || !authPassword} className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-700 transition disabled:opacity-50">註冊並綁定</button>
+                        <button onClick={(e) => handleAuthSubmit(e, false)} disabled={!authEmail || !authPassword} className="flex-1 bg-indigo-50 text-indigo-700 py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-100 transition disabled:opacity-50">登入帳號</button>
+                        <button onClick={(e) => handleAuthSubmit(e, true)} disabled={!authEmail || !authPassword} className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition disabled:opacity-50">註冊並綁定</button>
                      </div>
                    </div>
                 )}
@@ -1224,7 +1223,7 @@ export default function App() {
                        <span className="font-bold text-sm">匯出 CSV 備份</span>
                     </button>
                     
-                    <label className="flex flex-col items-center justify-center gap-2 p-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl transition border border-emerald-200 cursor-pointer">
+                    <label className="flex flex-col items-center justify-center gap-2 p-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl transition border border-blue-200 cursor-pointer">
                        <Upload size={20} />
                        <span className="font-bold text-sm">從 CSV 匯入</span>
                        <input 
@@ -1249,8 +1248,8 @@ export default function App() {
               {/* 支出分類設定 */}
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-gray-700 font-bold flex items-center gap-2"><PieChart size={18} className="text-emerald-500" />支出分類管理</h3>
-                  <button onClick={handleAddCategory} className="text-emerald-600 hover:bg-emerald-50 p-1 rounded-full"><Plus size={20}/></button>
+                  <h3 className="text-gray-700 font-bold flex items-center gap-2"><PieChart size={18} className="text-blue-500" />支出分類管理</h3>
+                  <button onClick={handleAddCategory} className="text-blue-600 hover:bg-blue-50 p-1 rounded-full"><Plus size={20}/></button>
                 </div>
                 <div className="space-y-3">
                   {categories.map((cat) => {
@@ -1269,14 +1268,14 @@ export default function App() {
                         
                         {isEditing ? (
                           <div className="flex-1 flex gap-2 items-center">
-                            <input type="text" value={cat.name ?? ''} onChange={(e) => handleUpdateCategory(cat.id, 'name', e.target.value)} className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-emerald-500 font-bold"/>
-                            <button onClick={() => setEditingCategory(null)} className="text-emerald-600 p-1 bg-emerald-50 rounded-lg"><Check size={18}/></button>
+                            <input type="text" value={cat.name ?? ''} onChange={(e) => handleUpdateCategory(cat.id, 'name', e.target.value)} className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500 font-bold"/>
+                            <button onClick={() => setEditingCategory(null)} className="text-blue-600 p-1 bg-blue-50 rounded-lg"><Check size={18}/></button>
                           </div>
                         ) : (<div className="flex-1 font-bold text-gray-700">{cat.name}</div>)}
                         
                         {!isEditing && (
                           <div className="flex gap-1">
-                            <button onClick={() => setEditingCategory(cat.id)} className="text-gray-400 hover:text-emerald-600 p-1"><Edit2 size={16}/></button>
+                            <button onClick={() => setEditingCategory(cat.id)} className="text-gray-400 hover:text-blue-600 p-1"><Edit2 size={16}/></button>
                             <button onClick={() => handleDeleteCategory(cat.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={16}/></button>
                           </div>
                         )}
@@ -1289,10 +1288,10 @@ export default function App() {
               {/* 信用卡與動態回饋管理 */}
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                 <div className="mb-4">
-                  <h3 className="text-gray-700 font-bold flex items-center gap-2 mb-2"><CreditCard size={18} className="text-emerald-500" />銀行與回饋管理</h3>
+                  <h3 className="text-gray-700 font-bold flex items-center gap-2 mb-2"><CreditCard size={18} className="text-blue-500" />銀行與回饋管理</h3>
                   <div className="flex gap-2 mb-4">
-                    <input type="text" placeholder="新增銀行 (例: 渣打)" value={newBankName ?? ''} onChange={(e) => setNewBankName(e.target.value)} className="flex-1 min-w-0 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"/>
-                    <button onClick={() => {if(newBankName.trim() && !bankCards[newBankName.trim()]){ setBankCards({...bankCards, [newBankName.trim()]: []}); setNewBankName(''); }}} className="bg-emerald-100 text-emerald-700 px-3 rounded-xl hover:bg-emerald-200 font-medium shrink-0">新增</button>
+                    <input type="text" placeholder="新增銀行 (例: 渣打)" value={newBankName ?? ''} onChange={(e) => setNewBankName(e.target.value)} className="flex-1 min-w-0 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-500"/>
+                    <button onClick={() => {if(newBankName.trim() && !bankCards[newBankName.trim()]){ setBankCards({...bankCards, [newBankName.trim()]: []}); setNewBankName(''); }}} className="bg-blue-100 text-blue-700 px-3 rounded-xl hover:bg-blue-200 font-medium shrink-0">新增</button>
                     {/* 加入一鍵還原預設的終極按鈕 */}
                     <button onClick={() => {if(window.confirm('確定要還原為系統最新預設的銀行與回饋嗎？(這會覆蓋掉您目前自訂的卡片)')){ setBankCards(DEFAULT_BANK_CARDS); saveSettingsToCloud(categories, DEFAULT_BANK_CARDS); }}} className="bg-red-50 text-red-600 px-3 rounded-xl hover:bg-red-100 font-medium whitespace-nowrap shrink-0" title="如果您的卡片設定跑掉，可以點此重置">還原預設</button>
                   </div>
@@ -1321,9 +1320,9 @@ export default function App() {
                             return (
                             <div key={idx}>
                               {editingCardKey === `${bankName}-${idx}` ? (
-                                <div className="p-3 bg-emerald-50/50 border border-emerald-200 rounded-xl space-y-3 relative">
+                                <div className="p-3 bg-blue-50/50 border border-blue-200 rounded-xl space-y-3 relative">
                                   <button onClick={() => setEditingCardKey(null)} className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"><X size={18}/></button>
-                                  <p className="text-xs font-bold text-emerald-700 mb-2 flex items-center gap-1"><Edit2 size={14}/> 編輯卡片設定</p>
+                                  <p className="text-xs font-bold text-blue-700 mb-2 flex items-center gap-1"><Edit2 size={14}/> 編輯卡片設定</p>
                                   
                                   <div className="flex items-center gap-2 mb-2">
                                      <button type="button" onClick={() => setPickerConfig({ type: 'cardForm', iconName: cardForm.iconName, color: cardForm.color })} className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-dashed border-gray-400 hover:scale-105 transition ${cardForm.color || 'bg-gray-100 text-gray-600'}`} title="點擊更換卡片圖示">
@@ -1337,10 +1336,10 @@ export default function App() {
                                     <input type="number" placeholder="信用額度" value={cardForm.limit ?? ''} onChange={(e) => setCardForm({...cardForm, limit: e.target.value})} className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-[16px]"/>
                                   </div>
                                   
-                                  <hr className="border-emerald-200 my-2" />
+                                  <hr className="border-blue-200 my-2" />
                                   <div className="flex items-center justify-between mb-2">
-                                    <p className="text-xs font-bold text-emerald-700 flex items-center gap-1"><Gift size={14}/> 回饋清單 (支援多筆疊加)</p>
-                                    <select value={cardForm.rewardCycle ?? 'calendar'} onChange={(e) => setCardForm({...cardForm, rewardCycle: e.target.value})} className="border border-emerald-300 bg-white rounded text-xs px-2 py-1 outline-none text-emerald-800">
+                                    <p className="text-xs font-bold text-blue-700 flex items-center gap-1"><Gift size={14}/> 回饋清單 (支援多筆疊加)</p>
+                                    <select value={cardForm.rewardCycle ?? 'calendar'} onChange={(e) => setCardForm({...cardForm, rewardCycle: e.target.value})} className="border border-blue-300 bg-white rounded text-xs px-2 py-1 outline-none text-blue-800">
                                       <option value="calendar">依月曆月結算</option><option value="billing">依結帳週期結算</option>
                                     </select>
                                   </div>
@@ -1383,30 +1382,30 @@ export default function App() {
                                   </div>
 
                                   <div className="flex gap-2 mt-2">
-                                    <button onClick={() => addRewardRuleToForm('cashback')} className="flex-1 border border-dashed border-emerald-400 text-emerald-700 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-100">+ 現金回饋</button>
+                                    <button onClick={() => addRewardRuleToForm('cashback')} className="flex-1 border border-dashed border-blue-400 text-blue-700 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100">+ 現金回饋</button>
                                     <button onClick={() => addRewardRuleToForm('points')} className="flex-1 border border-dashed border-indigo-400 text-indigo-700 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100">+ 紅利點數</button>
                                   </div>
 
-                                  <button onClick={() => saveCardForm(bankName, idx)} className="w-full bg-emerald-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 transition mt-3 flex justify-center items-center gap-2"><Save size={16}/> 儲存卡片設定</button>
+                                  <button onClick={() => saveCardForm(bankName, idx)} className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition mt-3 flex justify-center items-center gap-2"><Save size={16}/> 儲存卡片設定</button>
                                 </div>
                               ) : (
-                                <div className="flex justify-between items-start bg-white p-3 rounded-xl border border-gray-100 shadow-sm hover:border-emerald-200 transition group mb-2">
+                                <div className="flex justify-between items-start bg-white p-3 rounded-xl border border-gray-100 shadow-sm hover:border-blue-200 transition group mb-2">
                                   <div className="space-y-1.5 flex-1">
                                     <div className="font-bold text-gray-800 text-base flex items-center gap-2">
                                       <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${card.color || 'bg-gray-100 text-gray-600'}`}><CardIcon size={12}/></div>
                                       {card.name}
-                                      {card.rewards?.length > 0 && card.rewardCycle === 'billing' && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-normal">依結帳週期</span>}
+                                      {card.rewards?.length > 0 && card.rewardCycle === 'billing' && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-normal">依結帳週期</span>}
                                     </div>
                                     <div className="flex flex-col gap-1 mt-1 pl-8">
                                       {card.rewards?.map((r, i) => (
-                                        <span key={i} className={`text-[10px] font-medium px-1.5 py-0.5 rounded self-start ${r.type === 'cashback' ? 'text-emerald-700 bg-emerald-50 border border-emerald-100' : 'text-indigo-700 bg-indigo-50 border border-indigo-100'}`}>
+                                        <span key={i} className={`text-[10px] font-medium px-1.5 py-0.5 rounded self-start ${r.type === 'cashback' ? 'text-blue-700 bg-blue-50 border border-blue-100' : 'text-indigo-700 bg-indigo-50 border border-indigo-100'}`}>
                                           【{r.name}】 {r.type==='cashback' ? `${r.rate}%` : `滿${r.spend}送${r.earn}${r.unit}`} {r.limit ? `(上限刷$${r.limit})`:''}
                                         </span>
                                       ))}
                                       {(!card.rewards || card.rewards.length === 0) && <span className="text-[10px] text-gray-400">無特殊回饋設定</span>}
                                     </div>
                                   </div>
-                                  <div className="flex gap-1 shrink-0"><button onClick={() => openCardForm(bankName, card, idx)} className="text-gray-400 hover:text-emerald-600 p-1 bg-gray-50 rounded"><Edit2 size={16}/></button></div>
+                                  <div className="flex gap-1 shrink-0"><button onClick={() => openCardForm(bankName, card, idx)} className="text-gray-400 hover:text-blue-600 p-1 bg-gray-50 rounded"><Edit2 size={16}/></button></div>
                                 </div>
                               )}
                             </div>
@@ -1414,9 +1413,9 @@ export default function App() {
                           })}
                           
                           {editingCardKey === `new-${bankName}` ? (
-                            <div className="p-3 bg-emerald-50/50 border border-emerald-200 rounded-xl space-y-3 relative mt-2">
+                            <div className="p-3 bg-blue-50/50 border border-blue-200 rounded-xl space-y-3 relative mt-2">
                                <button onClick={() => setEditingCardKey(null)} className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"><X size={18}/></button>
-                               <p className="text-xs font-bold text-emerald-700 mb-2 flex items-center gap-1"><Plus size={14}/> 新增卡片</p>
+                               <p className="text-xs font-bold text-blue-700 mb-2 flex items-center gap-1"><Plus size={14}/> 新增卡片</p>
                                
                                <div className="flex items-center gap-2 mb-2">
                                   <button type="button" onClick={() => setPickerConfig({ type: 'cardForm', iconName: cardForm.iconName, color: cardForm.color })} className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-dashed border-gray-400 hover:scale-105 transition ${cardForm.color || 'bg-gray-100 text-gray-600'}`} title="點擊更換卡片圖示">
@@ -1429,10 +1428,10 @@ export default function App() {
                                  <input type="text" placeholder="結帳日" value={cardForm.billing ?? ''} onChange={(e) => setCardForm({...cardForm, billing: e.target.value})} className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-[16px]"/>
                                  <input type="number" placeholder="信用額度" value={cardForm.limit ?? ''} onChange={(e) => setCardForm({...cardForm, limit: e.target.value})} className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-[16px]"/>
                                </div>
-                               <button onClick={() => saveCardForm(bankName, -1)} className="w-full bg-emerald-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 transition mt-2">先建立卡片，再編輯回饋規則</button>
+                               <button onClick={() => saveCardForm(bankName, -1)} className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition mt-2">先建立卡片，再編輯回饋規則</button>
                             </div>
                           ) : (
-                            <button onClick={() => openCardForm(bankName, null, -1)} className="w-full bg-gray-50 text-emerald-600 py-2 rounded-xl text-sm font-medium hover:bg-gray-100 border border-dashed border-gray-300 mt-2">+ 新增卡片</button>
+                            <button onClick={() => openCardForm(bankName, null, -1)} className="w-full bg-gray-50 text-blue-600 py-2 rounded-xl text-sm font-medium hover:bg-gray-100 border border-dashed border-gray-300 mt-2">+ 新增卡片</button>
                           )}
                         </div>
                       )}
@@ -1451,7 +1450,7 @@ export default function App() {
           <div className="fixed inset-0 bg-black/70 z-[60] flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity">
             <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Palette size={20} className="text-emerald-600"/> 自訂外觀</h3>
+                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Palette size={20} className="text-blue-600"/> 自訂外觀</h3>
                 <button onClick={() => setPickerConfig(null)} className="p-1 text-gray-400 hover:bg-gray-100 rounded-full"><X size={20}/></button>
               </div>
 
@@ -1479,7 +1478,7 @@ export default function App() {
                        const IconComp = ICON_MAP[iconKey];
                        const isSelected = pickerConfig.iconName === iconKey;
                        return (
-                         <button key={iconKey} onClick={() => setPickerConfig({...pickerConfig, iconName: iconKey})} className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isSelected ? 'bg-emerald-600 text-white shadow-md scale-110' : 'bg-white text-gray-600 hover:bg-gray-200 shadow-sm border border-gray-200'}`}>
+                         <button key={iconKey} onClick={() => setPickerConfig({...pickerConfig, iconName: iconKey})} className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isSelected ? 'bg-blue-600 text-white shadow-md scale-110' : 'bg-white text-gray-600 hover:bg-gray-200 shadow-sm border border-gray-200'}`}>
                            <IconComp size={20} />
                          </button>
                        )
@@ -1496,33 +1495,36 @@ export default function App() {
         )}
 
         {/* ========================================== */}
-        {/* 懸浮新增按鈕 (FAB) - 右側獨立區塊 */}
+        {/* 底部固定區域 (包含 FAB 新增按鈕與導覽列) */}
         {/* ========================================== */}
-        <button
-          onClick={() => openExpenseModal()}
-          className="absolute bottom-[calc(76px+env(safe-area-inset-bottom))] right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-400 hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all z-30"
-        >
-          <Plus size={30} />
-        </button>
+        <div className="fixed bottom-0 w-full max-w-md z-40 pointer-events-none flex flex-col">
+          {/* 懸浮新增按鈕 (FAB) */}
+          <div className="w-full flex justify-end px-6 mb-4">
+             <button
+               onClick={() => openExpenseModal()}
+               className="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-blue-400 hover:bg-blue-700 hover:scale-105 active:scale-95 transition-all pointer-events-auto"
+             >
+               <Plus size={30} />
+             </button>
+          </div>
 
-        {/* ========================================== */}
-        {/* 底部導覽列 - 加入動態安全區域高度 padding */}
-        {/* ========================================== */}
-        <div className="mt-auto w-full bg-white border-t border-gray-200 px-6 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] grid grid-cols-3 place-items-center z-20 shrink-0">
-          <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'list' ? 'text-emerald-600' : 'text-gray-400'}`}>
-            <List size={24} /><span className="text-xs font-bold">明細</span>
-          </button>
-          <button onClick={() => setActiveTab('report')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'report' ? 'text-emerald-600' : 'text-gray-400'}`}>
-            <PieChart size={24} /><span className="text-xs font-bold">報表</span>
-          </button>
-          <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'settings' ? 'text-emerald-600' : 'text-gray-400'}`}>
-            <Settings size={24} /><span className="text-xs font-bold">設定</span>
-          </button>
+          {/* 底部導覽列 - 加入動態安全區域高度 padding */}
+          <div className="w-full bg-white border-t border-gray-200 px-6 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] grid grid-cols-3 place-items-center pointer-events-auto">
+            <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'list' ? 'text-blue-600' : 'text-gray-400'}`}>
+              <List size={24} /><span className="text-xs font-bold">明細</span>
+            </button>
+            <button onClick={() => setActiveTab('report')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'report' ? 'text-blue-600' : 'text-gray-400'}`}>
+              <PieChart size={24} /><span className="text-xs font-bold">報表</span>
+            </button>
+            <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'settings' ? 'text-blue-600' : 'text-gray-400'}`}>
+              <Settings size={24} /><span className="text-xs font-bold">設定</span>
+            </button>
+          </div>
         </div>
 
         {/* 新增/編輯支出 Modal */}
         {isModalOpen && (
-          <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity">
+          <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity pointer-events-auto">
             <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 pb-[calc(24px+env(safe-area-inset-bottom))] md:pb-6 shadow-2xl overflow-y-auto max-h-[90dvh]">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">{editingExpenseId ? '編輯明細' : '新增支出'}</h2>
@@ -1530,19 +1532,19 @@ export default function App() {
               </div>
 
               <form onSubmit={handleSaveExpense} className="space-y-4">
-                <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
-                  <label className="text-emerald-700 text-sm font-semibold mb-1 block">金額 (NT$)</label>
-                  <input type="number" name="amount" value={formData.amount ?? ''} onChange={handleFormChange} placeholder="0" required className="w-full bg-transparent text-4xl font-bold text-emerald-800 placeholder-emerald-300 outline-none font-mono"/>
+                <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+                  <label className="text-blue-700 text-sm font-semibold mb-1 block">金額 (NT$)</label>
+                  <input type="number" name="amount" value={formData.amount ?? ''} onChange={handleFormChange} placeholder="0" required className="w-full bg-transparent text-4xl font-bold text-blue-800 placeholder-blue-300 outline-none font-mono"/>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-gray-600 text-sm font-medium mb-1 block">日期</label>
-                    <input type="date" name="date" value={formData.date ?? ''} onChange={handleFormChange} required className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500"/>
+                    <input type="date" name="date" value={formData.date ?? ''} onChange={handleFormChange} required className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-blue-500"/>
                   </div>
                   <div>
                     <label className="text-gray-600 text-sm font-medium mb-1 block">分類</label>
-                    <select name="category" value={formData.category ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white">
+                    <select name="category" value={formData.category ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-blue-500 bg-white">
                       {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
                     </select>
                   </div>
@@ -1550,7 +1552,7 @@ export default function App() {
 
                 <div>
                   <label className="text-gray-600 text-sm font-medium mb-1 block">項目說明</label>
-                  <input type="text" name="description" value={formData.description ?? ''} onChange={handleFormChange} placeholder="例如：午餐、搭捷運" required className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500"/>
+                  <input type="text" name="description" value={formData.description ?? ''} onChange={handleFormChange} placeholder="例如：午餐、搭捷運" required className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-blue-500"/>
                 </div>
 
                 <hr className="border-gray-200" />
@@ -1558,13 +1560,13 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-gray-600 text-sm font-medium mb-1 block">銀行/支付</label>
-                    <select name="bank" value={formData.bank ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white">
+                    <select name="bank" value={formData.bank ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-blue-500 bg-white">
                       {sortedBankNames.map(bank => <option key={bank} value={bank}>{bank}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="text-gray-600 text-sm font-medium mb-1 block">卡別</label>
-                    <select name="card" value={formData.card ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white">
+                    <select name="card" value={formData.card ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-blue-500 bg-white">
                       {bankCards[formData.bank]?.map(card => <option key={card.name} value={card.name}>{card.name}</option>)}
                     </select>
                   </div>
@@ -1581,7 +1583,7 @@ export default function App() {
                           <div 
                             key={rule.id} 
                             onClick={() => toggleRewardRule(rule.id)}
-                            className={`cursor-pointer px-3 py-1.5 rounded-full border text-xs font-bold transition select-none ${isSelected ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
+                            className={`cursor-pointer px-3 py-1.5 rounded-full border text-xs font-bold transition select-none ${isSelected ? 'bg-blue-100 border-blue-400 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
                           >
                             {rule.name} {rule.type === 'cashback' ? `${rule.rate}%` : `(送${rule.unit})`}
                           </div>
@@ -1591,7 +1593,7 @@ export default function App() {
                   </div>
                 )}
 
-                <button type="submit" className="w-full bg-emerald-600 text-white font-bold text-lg py-4 rounded-2xl mt-2 hover:bg-emerald-700 transition active:scale-95 flex items-center justify-center gap-2">
+                <button type="submit" className="w-full bg-blue-600 text-white font-bold text-lg py-4 rounded-2xl mt-2 hover:bg-blue-700 transition active:scale-95 flex items-center justify-center gap-2">
                   <Check size={24} />{editingExpenseId ? '更新紀錄' : '儲存紀錄'}
                 </button>
               </form>
