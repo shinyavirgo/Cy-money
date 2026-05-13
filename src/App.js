@@ -72,9 +72,9 @@ import {
   Download,
   FileText,
   LogOut,
+  User,
   Wand2,
   Loader2,
-  UserCircle,
 } from "lucide-react";
 
 // ==========================================
@@ -521,9 +521,7 @@ const ICON_MAP = {
   Zap,
   Award,
   Star,
-  Wand2,
-  Loader2,
-  UserCircle,
+  User,
 };
 const AVAILABLE_ICONS = Object.keys(ICON_MAP);
 
@@ -550,56 +548,43 @@ try {
 }
 
 // ==========================================
-// Gemini API 設定
+// 輔助函式
 // ==========================================
-const GEMINI_API_KEY = ""; // 執行環境會自動提供
-
-const parseExpenseWithGemini = async (
-  text,
-  currentCategories,
-  currentBanks
-) => {
-  try {
-    const prompt = `
-      你是一個記帳助手。請從以下使用者的自然語言描述中，提取記帳所需的欄位。
-      
-      可用分類清單：${currentCategories.map((c) => c.name).join(", ")}
-      可用銀行清單：${Object.keys(currentBanks).join(", ")}
-      
-      請回傳 JSON 格式，必須包含以下欄位：
-      {
-        "amount": (數字，金額),
-        "description": (字串，項目簡短說明),
-        "category": (字串，必須是分類清單中的其中一個，若無法分類則填 "其他"),
-        "bank": (字串，必須是銀行清單中的其中一個，若沒提到信用卡或銀行則填 "現金"),
-        "cardName": (字串，使用者提到的卡片名稱，若無則留空或填 "現金"),
-        "date": (字串，YYYY-MM-DD 格式。若使用者說「今天」，請使用 ${new Date()
-          .toISOString()
-          .slice(0, 10)})
-      }
-      
-      使用者描述： "${text}"
-    `;
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" },
-        }),
-      }
-    );
-
-    const result = await response.json();
-    return JSON.parse(result.candidates[0].content.parts[0].text);
-  } catch (error) {
-    console.error("Gemini API Error:", error);
-    return null;
-  }
+const extractBillingDay = (billingStr) => {
+  if (!billingStr || billingStr === "無") return 999;
+  const match = billingStr.match(/\d+/);
+  return match ? parseInt(match[0], 10) : 999;
 };
+
+// 全域樣式：解決 iOS Safari PWA 輸入框無法點擊與捲動的 Bug
+const GlobalStyles = () => (
+  <style
+    dangerouslySetInnerHTML={{
+      __html: `
+    html, body, #root {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      /* 絕對不能在 body 加 overflow: hidden，否則 iOS PWA 輸入框會無法點擊 */
+      background-color: #e5e7eb;
+      overscroll-behavior-y: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    input, textarea, select {
+      font-size: 16px !important; /* 確保 iOS 點擊時不會自動放大破壞版面 */
+      -webkit-user-select: text !important;
+      user-select: text !important;
+      pointer-events: auto !important;
+    }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  `,
+    }}
+  />
+);
 
 // ==========================================
 // 3. 主應用程式組件
@@ -624,7 +609,7 @@ export default function App() {
   const [editingExpenseId, setEditingExpenseId] = useState(null);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().slice(0, 10),
-    category: "食",
+    category: "餐飲",
     amount: "",
     description: "",
     bank: "現金",
@@ -647,20 +632,90 @@ export default function App() {
     color: "bg-gray-100 text-gray-600",
   });
 
-  // 帳號登入狀態
+  // 帳號登入與錯誤狀態
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authError, setAuthError] = useState("");
-
-  // AI 狀態
-  const [aiInput, setAiInput] = useState("");
-  const [isAiProcessing, setIsAiProcessing] = useState(false);
 
   // 匯出匯入狀態
   const [importStatus, setImportStatus] = useState("");
   const fileInputRef = useRef(null);
 
-  // 初始化權限驗證：安全捕捉所有金鑰衝突或未開啟匿名登入等例外錯誤
+  // 未刷卡片折疊狀態
+  const [showUnusedCards, setShowUnusedCards] = useState(false);
+
+  // 銀行排序 (現金最前，其餘依結帳日排序)
+  const sortedBankNames = useMemo(() => {
+    return Object.keys(bankCards).sort((a, b) => {
+      if (a === "現金") return -1;
+      if (b === "現金") return 1;
+      const getMinDay = (bName) => {
+        const cards = bankCards[bName] || [];
+        if (cards.length === 0) return 999;
+        return Math.min(...cards.map((c) => extractBillingDay(c.billing)));
+      };
+      const dayA = getMinDay(a);
+      const dayB = getMinDay(b);
+      if (dayA !== dayB) return dayA - dayB;
+      return a.localeCompare(b);
+    });
+  }, [bankCards]);
+
+  // === PWA 滿版全螢幕支援 ===
+  useEffect(() => {
+    const setupPWA = () => {
+      let viewport = document.querySelector('meta[name="viewport"]');
+      if (!viewport) {
+        viewport = document.createElement("meta");
+        viewport.name = "viewport";
+        document.head.appendChild(viewport);
+      }
+      viewport.content =
+        "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover";
+
+      const metaTags = [
+        { name: "apple-mobile-web-app-capable", content: "yes" },
+        { name: "mobile-web-app-capable", content: "yes" },
+        {
+          name: "apple-mobile-web-app-status-bar-style",
+          content: "black-translucent",
+        },
+        { name: "theme-color", content: "#059669" },
+      ];
+
+      metaTags.forEach(({ name, content }) => {
+        let meta = document.querySelector(`meta[name="${name}"]`);
+        if (!meta) {
+          meta = document.createElement("meta");
+          meta.name = name;
+          document.head.appendChild(meta);
+        }
+        meta.content = content;
+      });
+
+      const manifest = {
+        name: "專屬記帳系統",
+        short_name: "記帳",
+        display: "standalone",
+        background_color: "#e5e7eb",
+        theme_color: "#059669",
+      };
+      const blob = new Blob([JSON.stringify(manifest)], {
+        type: "application/json",
+      });
+      const manifestURL = URL.createObjectURL(blob);
+      let link = document.querySelector('link[rel="manifest"]');
+      if (!link) {
+        link = document.createElement("link");
+        link.rel = "manifest";
+        document.head.appendChild(link);
+      }
+      link.href = manifestURL;
+    };
+    setupPWA();
+  }, []);
+
+  // 初始化權限驗證
   useEffect(() => {
     if (!auth) return;
 
@@ -1015,7 +1070,8 @@ export default function App() {
 
           if (rule.limit) {
             tracking.push({
-              cardName: `${cardInfo.name} - ${rule.name}`,
+              cardName: cardInfo.name,
+              ruleName: rule.name,
               spent: cycleSpent,
               limit: rule.limit,
               cycleLabel: label,
@@ -1041,7 +1097,14 @@ export default function App() {
     return {
       filteredExpenses: filtered,
       totalMonth: total,
-      bankTotals: Object.entries(bnkTotals).sort((a, b) => b[1] - a[1]),
+      bankTotals: Object.entries(bnkTotals).sort((a, b) => {
+        if (a[0] === "現金") return -1;
+        if (b[0] === "現金") return 1;
+        const dayA = extractBillingDay(bankCards[a[0]]?.[0]?.billing);
+        const dayB = extractBillingDay(bankCards[b[0]]?.[0]?.billing);
+        if (dayA !== dayB) return dayA - dayB;
+        return b[1] - a[1];
+      }),
       cardTotals: crdTotals,
       estimatedCashback: Math.round(finalCashback),
       estimatedPoints: Object.entries(finalPoints).map(([u, p]) => [
@@ -1119,7 +1182,7 @@ export default function App() {
       setEditingExpenseId(expenseToEdit.id);
       setFormData({
         date: expenseToEdit.date || new Date().toISOString().slice(0, 10),
-        category: expenseToEdit.category || "食",
+        category: expenseToEdit.category || "餐飲",
         amount: expenseToEdit.amount || "",
         description: expenseToEdit.description || "",
         bank: expenseToEdit.bank || "現金",
@@ -1136,7 +1199,6 @@ export default function App() {
         description: "",
       }));
     }
-    setAiInput("");
     setIsModalOpen(true);
   };
 
@@ -1446,152 +1508,108 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  const handleAiProcess = async () => {
-    if (!aiInput.trim()) return;
-    setIsAiProcessing(true);
-    const parsedData = await parseExpenseWithGemini(
-      aiInput,
-      categories,
-      bankCards
-    );
-
-    if (parsedData) {
-      let bestCard = "現金";
-      let bestBank = parsedData.bank || "現金";
-      let bestBillingDate = "無";
-      let defaultRewards = [];
-
-      if (bankCards[bestBank]) {
-        const foundCard = bankCards[bestBank].find(
-          (c) => c.name === parsedData.cardName
-        );
-        if (foundCard) {
-          bestCard = foundCard.name;
-          bestBillingDate = foundCard.billing;
-          defaultRewards =
-            foundCard.rewards?.length > 0 ? [foundCard.rewards[0].id] : [];
-        } else {
-          bestCard = bankCards[bestBank][0].name;
-          bestBillingDate = bankCards[bestBank][0].billing;
-          defaultRewards =
-            bankCards[bestBank][0].rewards?.length > 0
-              ? [bankCards[bestBank][0].rewards[0].id]
-              : [];
-        }
-      }
-
-      setFormData({
-        ...formData,
-        amount: parsedData.amount || "",
-        description: parsedData.description || "",
-        category: parsedData.category || "其他",
-        date: parsedData.date || new Date().toISOString().slice(0, 10),
-        bank: bestBank,
-        card: bestCard,
-        billingDate: bestBillingDate,
-        appliedRewards: defaultRewards,
-      });
-      setAiInput("");
-    } else {
-      alert("解析失敗，請重新輸入或手動填寫");
-    }
-    setIsAiProcessing(false);
-  };
-
-  if (isLoading && !user)
+  if (isLoading && !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-emerald-600">
+      <div className="w-full h-[100dvh] flex items-center justify-center bg-gray-50 text-emerald-600 relative">
+        <GlobalStyles />
         載入中...
       </div>
     );
+  }
 
+  // 登入畫面修改：使用 overflow-y-auto 與 flex-col，讓鍵盤彈出時系統可以順利推動畫面
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-200 flex justify-center items-center font-sans p-4">
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 space-y-6">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Wallet size={32} />
+      <div className="w-full h-[100dvh] bg-gray-200 overflow-y-auto -webkit-overflow-scrolling-touch relative">
+        <GlobalStyles />
+        <div className="flex flex-col justify-center items-center min-h-full p-4 w-full">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 space-y-6 my-auto">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Wallet size={32} />
+              </div>
+              <h1 className="text-2xl font-bold text-gray-800">
+                雲端記帳小幫手
+              </h1>
+              <p className="text-sm text-gray-500 mt-2">Create by Cy</p>
             </div>
-            <h1 className="text-2xl font-bold text-gray-800">
-              私有雲端記帳系統
-            </h1>
-            <p className="text-sm text-gray-500 mt-2">
-              資料已切換至您的專屬 Firebase
-            </p>
+
+            {authError && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm text-center border border-red-200">
+                {authError}
+              </div>
+            )}
+
+            <form
+              onSubmit={(e) => handleAuthSubmit(e, false)}
+              className="space-y-4"
+            >
+              <div>
+                <label className="text-sm font-bold text-gray-700 block mb-1">
+                  電子郵件 Email
+                </label>
+                <input
+                  type="email"
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  required
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-[16px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition"
+                  placeholder="your@email.com"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-bold text-gray-700 block mb-1">
+                  密碼 Password
+                </label>
+                <input
+                  type="password"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  required
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-[16px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition"
+                  placeholder="請輸入至少6位數密碼"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={(e) => handleAuthSubmit(e, false)}
+                  disabled={!authEmail || !authPassword}
+                  className="flex-1 bg-indigo-100 text-indigo-700 py-3 rounded-xl text-sm font-bold hover:bg-indigo-200 transition disabled:opacity-50"
+                >
+                  登入帳號
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleAuthSubmit(e, true)}
+                  disabled={!authEmail || !authPassword}
+                  className="flex-1 bg-indigo-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-indigo-700 transition disabled:opacity-50"
+                >
+                  註冊並綁定
+                </button>
+              </div>
+            </form>
           </div>
-
-          {authError && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm text-center border border-red-200">
-              {authError}
-            </div>
-          )}
-
-          <form
-            onSubmit={(e) => handleAuthSubmit(e, false)}
-            className="space-y-4"
-          >
-            <div>
-              <label className="text-sm font-bold text-gray-700 block mb-1">
-                電子郵件 Email
-              </label>
-              <input
-                type="email"
-                value={authEmail}
-                onChange={(e) => setAuthEmail(e.target.value)}
-                required
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition"
-                placeholder="your@email.com"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-bold text-gray-700 block mb-1">
-                密碼 Password
-              </label>
-              <input
-                type="password"
-                value={authPassword}
-                onChange={(e) => setAuthPassword(e.target.value)}
-                required
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition"
-                placeholder="請輸入至少6位數密碼"
-              />
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={(e) => handleAuthSubmit(e, false)}
-                disabled={!authEmail || !authPassword}
-                className="flex-1 bg-indigo-100 text-indigo-700 py-3 rounded-xl text-sm font-bold hover:bg-indigo-200 transition disabled:opacity-50"
-              >
-                登入帳號
-              </button>
-              <button
-                type="button"
-                onClick={(e) => handleAuthSubmit(e, true)}
-                disabled={!authEmail || !authPassword}
-                className="flex-1 bg-indigo-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-indigo-700 transition disabled:opacity-50"
-              >
-                註冊並綁定
-              </button>
-            </div>
-          </form>
         </div>
       </div>
     );
   }
 
-  if (isLoading || !settingsLoaded)
+  if (isLoading || !settingsLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-emerald-600">
+      <div className="w-full h-[100dvh] flex items-center justify-center bg-gray-50 text-emerald-600 relative">
+        <GlobalStyles />
         讀取資料中...
       </div>
     );
+  }
 
+  // 主畫面修改：移除最外層的 fixed inset-0 與 overflow-hidden，改由內部控管
   return (
-    <div className="min-h-screen bg-gray-200 flex justify-center font-sans">
-      <div className="w-full max-w-md bg-gray-50 relative flex flex-col h-screen overflow-hidden shadow-2xl">
+    <div className="w-full h-[100dvh] bg-gray-200 flex justify-center relative overflow-hidden">
+      <GlobalStyles />
+      <div className="w-full max-w-md bg-gray-50 relative flex flex-col h-full shadow-2xl overflow-hidden">
         {/* Header */}
         {activeTab !== "settings" && (
           <header className="bg-emerald-600 text-white pt-6 pb-4 px-6 rounded-b-3xl shadow-md z-10 shrink-0">
@@ -1811,65 +1829,230 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 2. 回饋上限追蹤 */}
-              {rewardLimitTracking.length > 0 && (
-                <div className="bg-white p-5 rounded-3xl shadow-sm border border-orange-100">
-                  <h3 className="text-orange-600 font-semibold mb-4 flex items-center gap-2">
-                    <TrendingUp size={18} />
-                    信用卡剩餘回饋可刷金額
-                  </h3>
-                  <div className="space-y-4">
-                    {rewardLimitTracking.map((track, idx) => {
-                      const remaining = Math.max(0, track.limit - track.spent);
-                      const percentage =
-                        Math.min(
-                          100,
-                          Math.round((track.spent / track.limit) * 100)
-                        ) || 0;
-                      const isMaxedOut = track.spent >= track.limit;
+              {/* 2. 各卡額度與回饋狀態 (合併顯示並自動折疊未刷卡片) */}
+              <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
+                <h3 className="text-gray-500 font-semibold mb-4 flex items-center gap-2">
+                  <AlertCircle size={18} />
+                  各卡額度與回饋狀態
+                </h3>
+                <div className="space-y-5">
+                  {(() => {
+                    const cardsToTrack = Object.values(bankCards)
+                      .flat()
+                      .filter((card) => {
+                        const hasCreditLimit = card.limit !== null;
+                        const hasRewardLimit = rewardLimitTracking.some(
+                          (t) => t.cardName === card.name
+                        );
+                        return hasCreditLimit || hasRewardLimit;
+                      })
+                      .sort(
+                        (a, b) =>
+                          extractBillingDay(a.billing) -
+                          extractBillingDay(b.billing)
+                      );
+
+                    if (cardsToTrack.length === 0) {
+                      return (
+                        <p className="text-sm text-gray-400 text-center py-2">
+                          尚無需要追蹤的額度或回饋
+                        </p>
+                      );
+                    }
+
+                    const usedCards = [];
+                    const unusedCards = [];
+
+                    cardsToTrack.forEach((card) => {
+                      const cardTracking = rewardLimitTracking.filter(
+                        (t) => t.cardName === card.name
+                      );
+                      const usedAmount = cardTotals[card.name] || 0;
+                      const hasTrackingSpent = cardTracking.some(
+                        (t) => t.spent > 0
+                      );
+
+                      if (usedAmount > 0 || hasTrackingSpent) {
+                        usedCards.push(card);
+                      } else {
+                        unusedCards.push(card);
+                      }
+                    });
+
+                    const renderCard = (card) => {
+                      const cardTracking = rewardLimitTracking.filter(
+                        (t) => t.cardName === card.name
+                      );
+                      const hasCreditLimit = card.limit !== null;
+                      const usedAmount = cardTotals[card.name] || 0;
+                      const CardIcon = ICON_MAP[card.iconName] || CreditCard;
+                      const cColor = card.color || "bg-gray-100 text-gray-600";
+
                       return (
                         <div
-                          key={idx}
-                          className="flex flex-col gap-1.5 border-b border-gray-50 pb-3 last:border-0 last:pb-0"
+                          key={card.name}
+                          className="flex flex-col gap-3 border-b border-gray-100 pb-5 last:border-0 last:pb-0"
                         >
-                          <div className="flex justify-between items-end">
-                            <div>
-                              <span className="font-bold text-gray-800 block text-sm">
-                                {track.cardName}
-                              </span>
-                              <span className="text-[10px] text-gray-400">
-                                {track.cycleLabel}
-                              </span>
-                            </div>
-                            <span
-                              className={`font-mono text-sm ${
-                                isMaxedOut
-                                  ? "text-red-500 font-bold"
-                                  : "text-orange-600 font-bold"
-                              }`}
-                            >
-                              剩餘 ${remaining.toLocaleString()}{" "}
-                              <span className="text-gray-400 text-[10px] font-normal">
-                                / 上限 {track.limit.toLocaleString()}
-                              </span>
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-100 rounded-full h-2 relative overflow-hidden">
+                          <div className="flex items-start gap-3">
                             <div
-                              className={`h-2 rounded-full absolute top-0 left-0 transition-all ${
-                                isMaxedOut ? "bg-red-400" : "bg-orange-400"
-                              }`}
-                              style={{ width: `${percentage}%` }}
-                            ></div>
+                              className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 ${cColor}`}
+                            >
+                              <CardIcon size={14} />
+                            </div>
+                            <div className="flex-1 space-y-2">
+                              <span className="font-bold text-gray-800 text-sm block">
+                                {card.name}
+                                {card.billing && card.billing !== "無" && (
+                                  <span className="text-[10px] text-gray-400 ml-2 font-normal">
+                                    結帳日: {card.billing}
+                                  </span>
+                                )}
+                              </span>
+
+                              {/* 總信用額度 */}
+                              {hasCreditLimit && (
+                                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                  <div className="flex justify-between items-end mb-1.5">
+                                    <span className="text-[11px] font-bold text-gray-600 flex items-center gap-1">
+                                      💳 總信用額度
+                                    </span>
+                                    <span
+                                      className={`font-mono text-xs ${
+                                        card.limit - usedAmount < 0
+                                          ? "text-red-500"
+                                          : "text-emerald-600 font-bold"
+                                      }`}
+                                    >
+                                      剩餘 $
+                                      {(
+                                        card.limit - usedAmount
+                                      ).toLocaleString()}{" "}
+                                      <span className="text-gray-400 font-normal text-[10px]">
+                                        / {card.limit.toLocaleString()}
+                                      </span>
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                                    <div
+                                      className={`h-1.5 rounded-full transition-all ${
+                                        card.limit - usedAmount < 0
+                                          ? "bg-red-500"
+                                          : usedAmount / card.limit > 0.8
+                                          ? "bg-orange-400"
+                                          : "bg-emerald-400"
+                                      }`}
+                                      style={{
+                                        width: `${Math.min(
+                                          100,
+                                          (usedAmount / card.limit) * 100
+                                        )}%`,
+                                      }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* 回饋追蹤 */}
+                              {cardTracking.length > 0 && (
+                                <div className="space-y-2">
+                                  {cardTracking.map((track, idx) => {
+                                    const remaining = Math.max(
+                                      0,
+                                      track.limit - track.spent
+                                    );
+                                    const percentage =
+                                      Math.min(
+                                        100,
+                                        Math.round(
+                                          (track.spent / track.limit) * 100
+                                        )
+                                      ) || 0;
+                                    const isMaxedOut =
+                                      track.spent >= track.limit;
+                                    return (
+                                      <div
+                                        key={idx}
+                                        className="bg-orange-50/60 rounded-xl p-3 border border-orange-100/50"
+                                      >
+                                        <div className="flex justify-between items-end mb-1.5">
+                                          <div>
+                                            <span className="font-bold text-orange-800 block text-[11px]">
+                                              🎁 {track.ruleName}
+                                            </span>
+                                            <span className="text-[9px] text-orange-500/80">
+                                              {track.cycleLabel}
+                                            </span>
+                                          </div>
+                                          <span
+                                            className={`font-mono text-xs ${
+                                              isMaxedOut
+                                                ? "text-red-500 font-bold"
+                                                : "text-orange-600 font-bold"
+                                            }`}
+                                          >
+                                            可刷剩餘 $
+                                            {remaining.toLocaleString()}{" "}
+                                            <span className="text-orange-400/70 font-normal text-[10px]">
+                                              / {track.limit.toLocaleString()}
+                                            </span>
+                                          </span>
+                                        </div>
+                                        <div className="w-full bg-orange-200/50 rounded-full h-1.5 relative overflow-hidden">
+                                          <div
+                                            className={`h-1.5 rounded-full absolute top-0 left-0 transition-all ${
+                                              isMaxedOut
+                                                ? "bg-red-400"
+                                                : "bg-orange-400"
+                                            }`}
+                                            style={{ width: `${percentage}%` }}
+                                          ></div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
-                    })}
-                  </div>
-                </div>
-              )}
+                    };
 
-              {/* 3. 對帳單 (依據要求移至此處，在額度報表上方) */}
+                    return (
+                      <>
+                        {usedCards.length === 0 && (
+                          <p className="text-sm text-gray-400 text-center py-2">
+                            本月尚無刷卡紀錄
+                          </p>
+                        )}
+                        {usedCards.map(renderCard)}
+
+                        {unusedCards.length > 0 && (
+                          <div className="mt-2 pt-2">
+                            <button
+                              onClick={() =>
+                                setShowUnusedCards(!showUnusedCards)
+                              }
+                              className="w-full text-center text-gray-400 text-xs py-2 hover:bg-gray-50 rounded-xl transition flex items-center justify-center gap-1 border border-dashed border-gray-200"
+                            >
+                              {showUnusedCards
+                                ? "▲ 隱藏未刷卡片"
+                                : `▼ 展開未刷卡片 (${unusedCards.length})`}
+                            </button>
+                            {showUnusedCards && (
+                              <div className="mt-4 space-y-5 opacity-75 transition-all">
+                                {unusedCards.map(renderCard)}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* 3. 對帳單 (移至最下方並依照結帳日排序) */}
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                 <h3 className="text-gray-500 font-semibold mb-4 flex items-center gap-2">
                   <CreditCard size={18} />
@@ -1898,9 +2081,17 @@ export default function App() {
                           >
                             <BankIcon size={14} />
                           </div>
-                          <span className="font-bold text-gray-700">
-                            {bankName}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-gray-700">
+                              {bankName}
+                            </span>
+                            {firstCard?.billing &&
+                              firstCard.billing !== "無" && (
+                                <span className="text-[10px] text-gray-400">
+                                  結帳日: {firstCard.billing}
+                                </span>
+                              )}
+                          </div>
                         </div>
                         <span className="font-mono font-bold text-gray-800 text-lg">
                           ${amount.toLocaleString()}
@@ -1908,71 +2099,6 @@ export default function App() {
                       </div>
                     );
                   })}
-                </div>
-              </div>
-
-              {/* 4. 信用卡總額度追蹤 (額度報表移至最下方) */}
-              <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
-                <h3 className="text-gray-500 font-semibold mb-4 flex items-center gap-2">
-                  <AlertCircle size={18} />
-                  信用總額度追蹤
-                </h3>
-                <div className="space-y-4">
-                  {Object.values(bankCards)
-                    .flat()
-                    .filter((card) => card.limit !== null)
-                    .map((card) => {
-                      const usedAmount = cardTotals[card.name] || 0;
-                      const remaining = card.limit - usedAmount;
-                      const percentage =
-                        Math.min(
-                          100,
-                          Math.round((usedAmount / card.limit) * 100)
-                        ) || 0;
-                      const CardIcon = ICON_MAP[card.iconName] || CreditCard;
-                      const cColor = card.color || "bg-gray-100 text-gray-600";
-                      return (
-                        <div
-                          key={card.name}
-                          className="flex flex-col gap-1.5 border-b border-gray-50 pb-3 last:border-0 last:pb-0"
-                        >
-                          <div className="flex justify-between items-end text-sm">
-                            <span className="font-bold text-gray-700 flex items-center gap-2">
-                              <div
-                                className={`w-6 h-6 rounded-full flex items-center justify-center ${cColor}`}
-                              >
-                                <CardIcon size={12} />
-                              </div>
-                              {card.name}{" "}
-                              <span className="text-gray-400 text-xs font-normal">
-                                (${card.limit.toLocaleString()})
-                              </span>
-                            </span>
-                            <span
-                              className={`font-mono ${
-                                remaining < 0
-                                  ? "text-red-500 font-bold"
-                                  : "text-emerald-600 font-bold"
-                              }`}
-                            >
-                              剩餘 ${remaining.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                            <div
-                              className={`h-2 rounded-full transition-all ${
-                                remaining < 0
-                                  ? "bg-red-500"
-                                  : percentage > 80
-                                  ? "bg-orange-400"
-                                  : "bg-emerald-400"
-                              }`}
-                              style={{ width: `${percentage}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      );
-                    })}
                 </div>
               </div>
             </div>
@@ -1988,7 +2114,7 @@ export default function App() {
               {/* === 帳號與雲端同步區塊 === */}
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                 <h3 className="text-gray-700 font-bold flex items-center gap-2 mb-4">
-                  <UserCircle size={18} className="text-indigo-500" />
+                  <User size={18} className="text-indigo-500" />
                   帳號與雲端同步
                 </h3>
 
@@ -2029,14 +2155,14 @@ export default function App() {
                         placeholder="輸入 Email"
                         value={authEmail}
                         onChange={(e) => setAuthEmail(e.target.value)}
-                        className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-500 transition"
+                        className="w-full border border-gray-300 rounded-xl px-3 py-2 text-[16px] outline-none focus:border-indigo-500 transition"
                       />
                       <input
                         type="password"
                         placeholder="輸入密碼 (至少6位數)"
                         value={authPassword}
                         onChange={(e) => setAuthPassword(e.target.value)}
-                        className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-500 transition"
+                        className="w-full border border-gray-300 rounded-xl px-3 py-2 text-[16px] outline-none focus:border-indigo-500 transition"
                       />
                     </div>
 
@@ -2256,485 +2382,488 @@ export default function App() {
                 </div>
 
                 <div className="space-y-4">
-                  {Object.entries(bankCards).map(([bankName, cards]) => (
-                    <div
-                      key={bankName}
-                      className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm"
-                    >
+                  {sortedBankNames.map((bankName) => {
+                    const cards = bankCards[bankName];
+                    return (
                       <div
-                        className="bg-gray-50 p-3 flex justify-between items-center border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition"
-                        onClick={() =>
-                          setEditingBank(
-                            editingBank === bankName ? null : bankName
-                          )
-                        }
+                        key={bankName}
+                        className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm"
                       >
-                        <span className="font-bold text-gray-700 flex items-center gap-2">
-                          <div
-                            className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                              cards[0]?.color || "bg-gray-200 text-gray-600"
-                            }`}
-                          >
-                            {React.createElement(
-                              ICON_MAP[cards[0]?.iconName] || Landmark,
-                              { size: 12 }
-                            )}
-                          </div>
-                          {bankName}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
-                            {cards.length} 張卡
+                        <div
+                          className="bg-gray-50 p-3 flex justify-between items-center border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition"
+                          onClick={() =>
+                            setEditingBank(
+                              editingBank === bankName ? null : bankName
+                            )
+                          }
+                        >
+                          <span className="font-bold text-gray-700 flex items-center gap-2">
+                            <div
+                              className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                                cards[0]?.color || "bg-gray-200 text-gray-600"
+                              }`}
+                            >
+                              {React.createElement(
+                                ICON_MAP[cards[0]?.iconName] || Landmark,
+                                { size: 12 }
+                              )}
+                            </div>
+                            {bankName}
                           </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (window.confirm("確定刪除此銀行？")) {
-                                const nb = { ...bankCards };
-                                delete nb[bankName];
-                                setBankCards(nb);
-                                saveSettingsToCloud(categories, nb);
-                              }
-                            }}
-                            className="text-gray-400 hover:text-red-500 p-1"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
+                              {cards.length} 張卡
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm("確定刪除此銀行？")) {
+                                  const nb = { ...bankCards };
+                                  delete nb[bankName];
+                                  setBankCards(nb);
+                                  saveSettingsToCloud(categories, nb);
+                                }
+                              }}
+                              className="text-gray-400 hover:text-red-500 p-1"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </div>
-                      </div>
 
-                      {editingBank === bankName && (
-                        <div className="p-3 bg-white space-y-3">
-                          {cards.map((card, idx) => {
-                            const CardIcon =
-                              ICON_MAP[card.iconName] || CreditCard;
-                            return (
-                              <div key={idx}>
-                                {editingCardKey === `${bankName}-${idx}` ? (
-                                  <div className="p-3 bg-emerald-50/50 border border-emerald-200 rounded-xl space-y-3 relative">
-                                    <button
-                                      onClick={() => setEditingCardKey(null)}
-                                      className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"
-                                    >
-                                      <X size={18} />
-                                    </button>
-                                    <p className="text-xs font-bold text-emerald-700 mb-2 flex items-center gap-1">
-                                      <Edit2 size={14} /> 編輯卡片設定
-                                    </p>
-
-                                    <div className="flex items-center gap-2 mb-2">
+                        {editingBank === bankName && (
+                          <div className="p-3 bg-white space-y-3">
+                            {cards.map((card, idx) => {
+                              const CardIcon =
+                                ICON_MAP[card.iconName] || CreditCard;
+                              return (
+                                <div key={idx}>
+                                  {editingCardKey === `${bankName}-${idx}` ? (
+                                    <div className="p-3 bg-emerald-50/50 border border-emerald-200 rounded-xl space-y-3 relative">
                                       <button
-                                        type="button"
-                                        onClick={() =>
-                                          setPickerConfig({
-                                            type: "cardForm",
-                                            iconName: cardForm.iconName,
-                                            color: cardForm.color,
-                                          })
-                                        }
-                                        className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-dashed border-gray-400 hover:scale-105 transition ${
-                                          cardForm.color ||
-                                          "bg-gray-100 text-gray-600"
-                                        }`}
-                                        title="點擊更換卡片圖示"
+                                        onClick={() => setEditingCardKey(null)}
+                                        className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"
                                       >
-                                        {React.createElement(
-                                          ICON_MAP[cardForm.iconName] ||
-                                            CreditCard,
-                                          { size: 24 }
-                                        )}
+                                        <X size={18} />
                                       </button>
-                                      <input
-                                        type="text"
-                                        placeholder="卡片名稱 (必填)"
-                                        value={cardForm.name ?? ""}
-                                        onChange={(e) =>
-                                          setCardForm({
-                                            ...cardForm,
-                                            name: e.target.value,
-                                          })
-                                        }
-                                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-bold flex-1"
-                                      />
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                      <input
-                                        type="text"
-                                        placeholder="結帳日 (例: 每月12日)"
-                                        value={cardForm.billing ?? ""}
-                                        onChange={(e) =>
-                                          setCardForm({
-                                            ...cardForm,
-                                            billing: e.target.value,
-                                          })
-                                        }
-                                        className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                      />
-                                      <input
-                                        type="number"
-                                        placeholder="信用額度"
-                                        value={cardForm.limit ?? ""}
-                                        onChange={(e) =>
-                                          setCardForm({
-                                            ...cardForm,
-                                            limit: e.target.value,
-                                          })
-                                        }
-                                        className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                      />
-                                    </div>
-
-                                    <hr className="border-emerald-200 my-2" />
-                                    <div className="flex items-center justify-between mb-2">
-                                      <p className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-                                        <Gift size={14} /> 回饋清單
-                                        (支援多筆疊加)
+                                      <p className="text-xs font-bold text-emerald-700 mb-2 flex items-center gap-1">
+                                        <Edit2 size={14} /> 編輯卡片設定
                                       </p>
-                                      <select
-                                        value={
-                                          cardForm.rewardCycle ?? "calendar"
-                                        }
-                                        onChange={(e) =>
-                                          setCardForm({
-                                            ...cardForm,
-                                            rewardCycle: e.target.value,
-                                          })
-                                        }
-                                        className="border border-emerald-300 bg-white rounded text-xs px-2 py-1 outline-none text-emerald-800"
-                                      >
-                                        <option value="calendar">
-                                          依月曆月結算
-                                        </option>
-                                        <option value="billing">
-                                          依結帳週期結算
-                                        </option>
-                                      </select>
-                                    </div>
 
-                                    <div className="space-y-2">
-                                      {cardForm.rewards.map((rule, rIdx) => (
-                                        <div
-                                          key={rIdx}
-                                          className="bg-white border border-gray-200 rounded-lg p-2 shadow-sm"
-                                        >
-                                          <div className="flex justify-between items-center mb-2">
-                                            <input
-                                              type="text"
-                                              placeholder="回饋名稱 (例: 國內一般 / 網購加碼)"
-                                              value={rule.name ?? ""}
-                                              onChange={(e) =>
-                                                updateRewardRuleInForm(
-                                                  rIdx,
-                                                  "name",
-                                                  e.target.value
-                                                )
-                                              }
-                                              className="font-bold text-sm text-gray-800 border-b border-gray-200 outline-none w-2/3 pb-1"
-                                            />
-                                            <button
-                                              onClick={() =>
-                                                removeRewardRuleFromForm(rIdx)
-                                              }
-                                              className="text-red-400 hover:text-red-600"
-                                            >
-                                              <X size={16} />
-                                            </button>
-                                          </div>
-
-                                          {rule.type === "cashback" ? (
-                                            <div className="flex gap-2">
-                                              <div className="flex items-center border border-gray-200 rounded px-2 w-1/2">
-                                                <span className="text-xs text-gray-500 mr-1">
-                                                  回饋
-                                                </span>
-                                                <input
-                                                  type="number"
-                                                  step="0.01"
-                                                  placeholder="比例"
-                                                  value={rule.rate ?? ""}
-                                                  onChange={(e) =>
-                                                    updateRewardRuleInForm(
-                                                      rIdx,
-                                                      "rate",
-                                                      e.target.value
-                                                    )
-                                                  }
-                                                  className="w-full text-right text-sm py-1 outline-none font-mono"
-                                                />
-                                                <span className="text-gray-500 text-xs ml-1">
-                                                  %
-                                                </span>
-                                              </div>
-                                              <div className="flex items-center border border-gray-200 rounded px-2 w-1/2">
-                                                <span className="text-xs text-gray-500 mr-1">
-                                                  上限$
-                                                </span>
-                                                <input
-                                                  type="number"
-                                                  placeholder="無上限"
-                                                  value={rule.limit ?? ""}
-                                                  onChange={(e) =>
-                                                    updateRewardRuleInForm(
-                                                      rIdx,
-                                                      "limit",
-                                                      e.target.value
-                                                    )
-                                                  }
-                                                  className="w-full text-right text-sm py-1 outline-none font-mono"
-                                                />
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            <div className="flex flex-col gap-2">
-                                              <div className="flex items-center gap-1 text-xs text-gray-600">
-                                                每滿${" "}
-                                                <input
-                                                  type="number"
-                                                  value={rule.spend ?? ""}
-                                                  onChange={(e) =>
-                                                    updateRewardRuleInForm(
-                                                      rIdx,
-                                                      "spend",
-                                                      e.target.value
-                                                    )
-                                                  }
-                                                  className="w-12 border-b border-gray-300 text-center outline-none font-bold text-indigo-600"
-                                                />
-                                                送{" "}
-                                                <input
-                                                  type="number"
-                                                  value={rule.earn ?? ""}
-                                                  onChange={(e) =>
-                                                    updateRewardRuleInForm(
-                                                      rIdx,
-                                                      "earn",
-                                                      e.target.value
-                                                    )
-                                                  }
-                                                  className="w-12 border-b border-gray-300 text-center outline-none font-bold text-indigo-600"
-                                                />
-                                                <input
-                                                  type="text"
-                                                  placeholder="點數單位"
-                                                  value={rule.unit ?? ""}
-                                                  onChange={(e) =>
-                                                    updateRewardRuleInForm(
-                                                      rIdx,
-                                                      "unit",
-                                                      e.target.value
-                                                    )
-                                                  }
-                                                  className="flex-1 border-b border-gray-300 px-1 outline-none"
-                                                />
-                                              </div>
-                                              <div className="flex items-center border border-gray-200 rounded px-2 w-full">
-                                                <span className="text-xs text-gray-500 mr-1">
-                                                  可刷上限$
-                                                </span>
-                                                <input
-                                                  type="number"
-                                                  placeholder="無上限"
-                                                  value={rule.limit ?? ""}
-                                                  onChange={(e) =>
-                                                    updateRewardRuleInForm(
-                                                      rIdx,
-                                                      "limit",
-                                                      e.target.value
-                                                    )
-                                                  }
-                                                  className="w-full text-right text-sm py-1 outline-none font-mono"
-                                                />
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-
-                                    <div className="flex gap-2 mt-2">
-                                      <button
-                                        onClick={() =>
-                                          addRewardRuleToForm("cashback")
-                                        }
-                                        className="flex-1 border border-dashed border-emerald-400 text-emerald-700 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-100"
-                                      >
-                                        + 現金回饋
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          addRewardRuleToForm("points")
-                                        }
-                                        className="flex-1 border border-dashed border-indigo-400 text-indigo-700 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100"
-                                      >
-                                        + 紅利點數
-                                      </button>
-                                    </div>
-
-                                    <button
-                                      onClick={() =>
-                                        saveCardForm(bankName, idx)
-                                      }
-                                      className="w-full bg-emerald-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 transition mt-3 flex justify-center items-center gap-2"
-                                    >
-                                      <Save size={16} /> 儲存卡片設定
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <div className="flex justify-between items-start bg-white p-3 rounded-xl border border-gray-100 shadow-sm hover:border-emerald-200 transition group mb-2">
-                                    <div className="space-y-1.5 flex-1">
-                                      <div className="font-bold text-gray-800 text-base flex items-center gap-2">
-                                        <div
-                                          className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
-                                            card.color ||
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setPickerConfig({
+                                              type: "cardForm",
+                                              iconName: cardForm.iconName,
+                                              color: cardForm.color,
+                                            })
+                                          }
+                                          className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-dashed border-gray-400 hover:scale-105 transition ${
+                                            cardForm.color ||
                                             "bg-gray-100 text-gray-600"
                                           }`}
+                                          title="點擊更換卡片圖示"
                                         >
-                                          <CardIcon size={12} />
-                                        </div>
-                                        {card.name}
-                                        {card.rewards?.length > 0 &&
-                                          card.rewardCycle === "billing" && (
-                                            <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-normal">
-                                              依結帳週期
-                                            </span>
+                                          {React.createElement(
+                                            ICON_MAP[cardForm.iconName] ||
+                                              CreditCard,
+                                            { size: 24 }
                                           )}
+                                        </button>
+                                        <input
+                                          type="text"
+                                          placeholder="卡片名稱 (必填)"
+                                          value={cardForm.name ?? ""}
+                                          onChange={(e) =>
+                                            setCardForm({
+                                              ...cardForm,
+                                              name: e.target.value,
+                                            })
+                                          }
+                                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-[16px] font-bold flex-1"
+                                        />
                                       </div>
-                                      <div className="flex flex-col gap-1 mt-1 pl-8">
-                                        {card.rewards?.map((r, i) => (
-                                          <span
-                                            key={i}
-                                            className={`text-[10px] font-medium px-1.5 py-0.5 rounded self-start ${
-                                              r.type === "cashback"
-                                                ? "text-emerald-700 bg-emerald-50 border border-emerald-100"
-                                                : "text-indigo-700 bg-indigo-50 border border-indigo-100"
-                                            }`}
+
+                                      <div className="flex gap-2">
+                                        <input
+                                          type="text"
+                                          placeholder="結帳日 (例: 每月12日)"
+                                          value={cardForm.billing ?? ""}
+                                          onChange={(e) =>
+                                            setCardForm({
+                                              ...cardForm,
+                                              billing: e.target.value,
+                                            })
+                                          }
+                                          className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-[16px]"
+                                        />
+                                        <input
+                                          type="number"
+                                          placeholder="信用額度"
+                                          value={cardForm.limit ?? ""}
+                                          onChange={(e) =>
+                                            setCardForm({
+                                              ...cardForm,
+                                              limit: e.target.value,
+                                            })
+                                          }
+                                          className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-[16px]"
+                                        />
+                                      </div>
+
+                                      <hr className="border-emerald-200 my-2" />
+                                      <div className="flex items-center justify-between mb-2">
+                                        <p className="text-xs font-bold text-emerald-700 flex items-center gap-1">
+                                          <Gift size={14} /> 回饋清單
+                                          (支援多筆疊加)
+                                        </p>
+                                        <select
+                                          value={
+                                            cardForm.rewardCycle ?? "calendar"
+                                          }
+                                          onChange={(e) =>
+                                            setCardForm({
+                                              ...cardForm,
+                                              rewardCycle: e.target.value,
+                                            })
+                                          }
+                                          className="border border-emerald-300 bg-white rounded text-xs px-2 py-1 outline-none text-emerald-800"
+                                        >
+                                          <option value="calendar">
+                                            依月曆月結算
+                                          </option>
+                                          <option value="billing">
+                                            依結帳週期結算
+                                          </option>
+                                        </select>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        {cardForm.rewards.map((rule, rIdx) => (
+                                          <div
+                                            key={rIdx}
+                                            className="bg-white border border-gray-200 rounded-lg p-2 shadow-sm"
                                           >
-                                            【{r.name}】{" "}
-                                            {r.type === "cashback"
-                                              ? `${r.rate}%`
-                                              : `滿${r.spend}送${r.earn}${r.unit}`}{" "}
-                                            {r.limit
-                                              ? `(上限刷$${r.limit})`
-                                              : ""}
-                                          </span>
+                                            <div className="flex justify-between items-center mb-2">
+                                              <input
+                                                type="text"
+                                                placeholder="回饋名稱 (例: 國內一般 / 網購加碼)"
+                                                value={rule.name ?? ""}
+                                                onChange={(e) =>
+                                                  updateRewardRuleInForm(
+                                                    rIdx,
+                                                    "name",
+                                                    e.target.value
+                                                  )
+                                                }
+                                                className="font-bold text-sm text-gray-800 border-b border-gray-200 outline-none w-2/3 pb-1"
+                                              />
+                                              <button
+                                                onClick={() =>
+                                                  removeRewardRuleFromForm(rIdx)
+                                                }
+                                                className="text-red-400 hover:text-red-600"
+                                              >
+                                                <X size={16} />
+                                              </button>
+                                            </div>
+
+                                            {rule.type === "cashback" ? (
+                                              <div className="flex gap-2">
+                                                <div className="flex items-center border border-gray-200 rounded px-2 w-1/2">
+                                                  <span className="text-xs text-gray-500 mr-1">
+                                                    回饋
+                                                  </span>
+                                                  <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    placeholder="比例"
+                                                    value={rule.rate ?? ""}
+                                                    onChange={(e) =>
+                                                      updateRewardRuleInForm(
+                                                        rIdx,
+                                                        "rate",
+                                                        e.target.value
+                                                      )
+                                                    }
+                                                    className="w-full text-right text-sm py-1 outline-none font-mono"
+                                                  />
+                                                  <span className="text-gray-500 text-xs ml-1">
+                                                    %
+                                                  </span>
+                                                </div>
+                                                <div className="flex items-center border border-gray-200 rounded px-2 w-1/2">
+                                                  <span className="text-xs text-gray-500 mr-1">
+                                                    上限$
+                                                  </span>
+                                                  <input
+                                                    type="number"
+                                                    placeholder="無上限"
+                                                    value={rule.limit ?? ""}
+                                                    onChange={(e) =>
+                                                      updateRewardRuleInForm(
+                                                        rIdx,
+                                                        "limit",
+                                                        e.target.value
+                                                      )
+                                                    }
+                                                    className="w-full text-right text-sm py-1 outline-none font-mono"
+                                                  />
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <div className="flex flex-col gap-2">
+                                                <div className="flex items-center gap-1 text-xs text-gray-600">
+                                                  每滿${" "}
+                                                  <input
+                                                    type="number"
+                                                    value={rule.spend ?? ""}
+                                                    onChange={(e) =>
+                                                      updateRewardRuleInForm(
+                                                        rIdx,
+                                                        "spend",
+                                                        e.target.value
+                                                      )
+                                                    }
+                                                    className="w-12 border-b border-gray-300 text-center outline-none font-bold text-indigo-600"
+                                                  />
+                                                  送{" "}
+                                                  <input
+                                                    type="number"
+                                                    value={rule.earn ?? ""}
+                                                    onChange={(e) =>
+                                                      updateRewardRuleInForm(
+                                                        rIdx,
+                                                        "earn",
+                                                        e.target.value
+                                                      )
+                                                    }
+                                                    className="w-12 border-b border-gray-300 text-center outline-none font-bold text-indigo-600"
+                                                  />
+                                                  <input
+                                                    type="text"
+                                                    placeholder="點數單位"
+                                                    value={rule.unit ?? ""}
+                                                    onChange={(e) =>
+                                                      updateRewardRuleInForm(
+                                                        rIdx,
+                                                        "unit",
+                                                        e.target.value
+                                                      )
+                                                    }
+                                                    className="flex-1 border-b border-gray-300 px-1 outline-none"
+                                                  />
+                                                </div>
+                                                <div className="flex items-center border border-gray-200 rounded px-2 w-full">
+                                                  <span className="text-xs text-gray-500 mr-1">
+                                                    可刷上限$
+                                                  </span>
+                                                  <input
+                                                    type="number"
+                                                    placeholder="無上限"
+                                                    value={rule.limit ?? ""}
+                                                    onChange={(e) =>
+                                                      updateRewardRuleInForm(
+                                                        rIdx,
+                                                        "limit",
+                                                        e.target.value
+                                                      )
+                                                    }
+                                                    className="w-full text-right text-sm py-1 outline-none font-mono"
+                                                  />
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
                                         ))}
-                                        {(!card.rewards ||
-                                          card.rewards.length === 0) && (
-                                          <span className="text-[10px] text-gray-400">
-                                            無特殊回饋設定
-                                          </span>
-                                        )}
                                       </div>
-                                    </div>
-                                    <div className="flex gap-1 shrink-0">
+
+                                      <div className="flex gap-2 mt-2">
+                                        <button
+                                          onClick={() =>
+                                            addRewardRuleToForm("cashback")
+                                          }
+                                          className="flex-1 border border-dashed border-emerald-400 text-emerald-700 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-100"
+                                        >
+                                          + 現金回饋
+                                        </button>
+                                        <button
+                                          onClick={() =>
+                                            addRewardRuleToForm("points")
+                                          }
+                                          className="flex-1 border border-dashed border-indigo-400 text-indigo-700 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100"
+                                        >
+                                          + 紅利點數
+                                        </button>
+                                      </div>
+
                                       <button
                                         onClick={() =>
-                                          openCardForm(bankName, card, idx)
+                                          saveCardForm(bankName, idx)
                                         }
-                                        className="text-gray-400 hover:text-emerald-600 p-1 bg-gray-50 rounded"
+                                        className="w-full bg-emerald-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 transition mt-3 flex justify-center items-center gap-2"
                                       >
-                                        <Edit2 size={16} />
+                                        <Save size={16} /> 儲存卡片設定
                                       </button>
                                     </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-
-                          {editingCardKey === `new-${bankName}` ? (
-                            <div className="p-3 bg-emerald-50/50 border border-emerald-200 rounded-xl space-y-3 relative mt-2">
-                              <button
-                                onClick={() => setEditingCardKey(null)}
-                                className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"
-                              >
-                                <X size={18} />
-                              </button>
-                              <p className="text-xs font-bold text-emerald-700 mb-2 flex items-center gap-1">
-                                <Plus size={14} /> 新增卡片
-                              </p>
-
-                              <div className="flex items-center gap-2 mb-2">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setPickerConfig({
-                                      type: "cardForm",
-                                      iconName: cardForm.iconName,
-                                      color: cardForm.color,
-                                    })
-                                  }
-                                  className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-dashed border-gray-400 hover:scale-105 transition ${
-                                    cardForm.color ||
-                                    "bg-gray-100 text-gray-600"
-                                  }`}
-                                  title="點擊更換卡片圖示"
-                                >
-                                  {React.createElement(
-                                    ICON_MAP[cardForm.iconName] || CreditCard,
-                                    { size: 24 }
+                                  ) : (
+                                    <div className="flex justify-between items-start bg-white p-3 rounded-xl border border-gray-100 shadow-sm hover:border-emerald-200 transition group mb-2">
+                                      <div className="space-y-1.5 flex-1">
+                                        <div className="font-bold text-gray-800 text-base flex items-center gap-2">
+                                          <div
+                                            className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+                                              card.color ||
+                                              "bg-gray-100 text-gray-600"
+                                            }`}
+                                          >
+                                            <CardIcon size={12} />
+                                          </div>
+                                          {card.name}
+                                          {card.rewards?.length > 0 &&
+                                            card.rewardCycle === "billing" && (
+                                              <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-normal">
+                                                依結帳週期
+                                              </span>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-col gap-1 mt-1 pl-8">
+                                          {card.rewards?.map((r, i) => (
+                                            <span
+                                              key={i}
+                                              className={`text-[10px] font-medium px-1.5 py-0.5 rounded self-start ${
+                                                r.type === "cashback"
+                                                  ? "text-emerald-700 bg-emerald-50 border border-emerald-100"
+                                                  : "text-indigo-700 bg-indigo-50 border border-indigo-100"
+                                              }`}
+                                            >
+                                              【{r.name}】{" "}
+                                              {r.type === "cashback"
+                                                ? `${r.rate}%`
+                                                : `滿${r.spend}送${r.earn}${r.unit}`}{" "}
+                                              {r.limit
+                                                ? `(上限刷$${r.limit})`
+                                                : ""}
+                                            </span>
+                                          ))}
+                                          {(!card.rewards ||
+                                            card.rewards.length === 0) && (
+                                            <span className="text-[10px] text-gray-400">
+                                              無特殊回饋設定
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="flex gap-1 shrink-0">
+                                        <button
+                                          onClick={() =>
+                                            openCardForm(bankName, card, idx)
+                                          }
+                                          className="text-gray-400 hover:text-emerald-600 p-1 bg-gray-50 rounded"
+                                        >
+                                          <Edit2 size={16} />
+                                        </button>
+                                      </div>
+                                    </div>
                                   )}
-                                </button>
-                                <input
-                                  type="text"
-                                  placeholder="卡片名稱 (必填)"
-                                  value={cardForm.name ?? ""}
-                                  onChange={(e) =>
-                                    setCardForm({
-                                      ...cardForm,
-                                      name: e.target.value,
-                                    })
-                                  }
-                                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-bold flex-1"
-                                />
-                              </div>
+                                </div>
+                              );
+                            })}
 
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  placeholder="結帳日"
-                                  value={cardForm.billing ?? ""}
-                                  onChange={(e) =>
-                                    setCardForm({
-                                      ...cardForm,
-                                      billing: e.target.value,
-                                    })
-                                  }
-                                  className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                />
-                                <input
-                                  type="number"
-                                  placeholder="信用額度"
-                                  value={cardForm.limit ?? ""}
-                                  onChange={(e) =>
-                                    setCardForm({
-                                      ...cardForm,
-                                      limit: e.target.value,
-                                    })
-                                  }
-                                  className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                />
+                            {editingCardKey === `new-${bankName}` ? (
+                              <div className="p-3 bg-emerald-50/50 border border-emerald-200 rounded-xl space-y-3 relative mt-2">
+                                <button
+                                  onClick={() => setEditingCardKey(null)}
+                                  className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"
+                                >
+                                  <X size={18} />
+                                </button>
+                                <p className="text-xs font-bold text-emerald-700 mb-2 flex items-center gap-1">
+                                  <Plus size={14} /> 新增卡片
+                                </p>
+
+                                <div className="flex items-center gap-2 mb-2">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setPickerConfig({
+                                        type: "cardForm",
+                                        iconName: cardForm.iconName,
+                                        color: cardForm.color,
+                                      })
+                                    }
+                                    className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-dashed border-gray-400 hover:scale-105 transition ${
+                                      cardForm.color ||
+                                      "bg-gray-100 text-gray-600"
+                                    }`}
+                                    title="點擊更換卡片圖示"
+                                  >
+                                    {React.createElement(
+                                      ICON_MAP[cardForm.iconName] || CreditCard,
+                                      { size: 24 }
+                                    )}
+                                  </button>
+                                  <input
+                                    type="text"
+                                    placeholder="卡片名稱 (必填)"
+                                    value={cardForm.name ?? ""}
+                                    onChange={(e) =>
+                                      setCardForm({
+                                        ...cardForm,
+                                        name: e.target.value,
+                                      })
+                                    }
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-[16px] font-bold flex-1"
+                                  />
+                                </div>
+
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    placeholder="結帳日"
+                                    value={cardForm.billing ?? ""}
+                                    onChange={(e) =>
+                                      setCardForm({
+                                        ...cardForm,
+                                        billing: e.target.value,
+                                      })
+                                    }
+                                    className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-[16px]"
+                                  />
+                                  <input
+                                    type="number"
+                                    placeholder="信用額度"
+                                    value={cardForm.limit ?? ""}
+                                    onChange={(e) =>
+                                      setCardForm({
+                                        ...cardForm,
+                                        limit: e.target.value,
+                                      })
+                                    }
+                                    className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-[16px]"
+                                  />
+                                </div>
+                                <button
+                                  onClick={() => saveCardForm(bankName, -1)}
+                                  className="w-full bg-emerald-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 transition mt-2"
+                                >
+                                  先建立卡片，再編輯回饋規則
+                                </button>
                               </div>
+                            ) : (
                               <button
-                                onClick={() => saveCardForm(bankName, -1)}
-                                className="w-full bg-emerald-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 transition mt-2"
+                                onClick={() => openCardForm(bankName, null, -1)}
+                                className="w-full bg-gray-50 text-emerald-600 py-2 rounded-xl text-sm font-medium hover:bg-gray-100 border border-dashed border-gray-300 mt-2"
                               >
-                                先建立卡片，再編輯回饋規則
+                                + 新增卡片
                               </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => openCardForm(bankName, null, -1)}
-                              className="w-full bg-gray-50 text-emerald-600 py-2 rounded-xl text-sm font-medium hover:bg-gray-100 border border-dashed border-gray-300 mt-2"
-                            >
-                              + 新增卡片
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -2895,41 +3024,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* ✨ AI 智慧輸入區塊 */}
-              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mb-4 relative overflow-hidden">
-                <div className="flex items-center gap-2 mb-2">
-                  <Wand2 size={16} className="text-indigo-600" />
-                  <span className="text-xs font-bold text-indigo-800">
-                    ✨ AI 記帳小幫手
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={aiInput}
-                    onChange={(e) => setAiInput(e.target.value)}
-                    placeholder="例：今天買便當120元刷賴點卡..."
-                    className="flex-1 text-sm px-3 py-2 rounded-xl border border-indigo-200 outline-none focus:ring-2 focus:ring-indigo-300"
-                    disabled={isAiProcessing}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAiProcess}
-                    disabled={isAiProcessing || !aiInput.trim()}
-                    className="bg-indigo-600 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center min-w-[60px]"
-                  >
-                    {isAiProcessing ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      "解析"
-                    )}
-                  </button>
-                </div>
-                <p className="text-[10px] text-indigo-400 mt-1 ml-1">
-                  輸入描述後點擊解析，AI 將自動為您填寫下方表單。
-                </p>
-              </div>
-
               <form onSubmit={handleSaveExpense} className="space-y-4">
                 <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
                   <label className="text-emerald-700 text-sm font-semibold mb-1 block">
@@ -2957,7 +3051,7 @@ export default function App() {
                       value={formData.date ?? ""}
                       onChange={handleFormChange}
                       required
-                      className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-emerald-500"
+                      className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500"
                     />
                   </div>
                   <div>
@@ -2968,7 +3062,7 @@ export default function App() {
                       name="category"
                       value={formData.category ?? ""}
                       onChange={handleFormChange}
-                      className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-emerald-500 bg-white"
+                      className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white"
                     >
                       {categories.map((cat) => (
                         <option key={cat.id} value={cat.name}>
@@ -2990,7 +3084,7 @@ export default function App() {
                     onChange={handleFormChange}
                     placeholder="例如：午餐、搭捷運"
                     required
-                    className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-emerald-500"
+                    className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500"
                   />
                 </div>
 
@@ -3005,9 +3099,9 @@ export default function App() {
                       name="bank"
                       value={formData.bank ?? ""}
                       onChange={handleFormChange}
-                      className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-emerald-500 bg-white"
+                      className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white"
                     >
-                      {Object.keys(bankCards).map((bank) => (
+                      {sortedBankNames.map((bank) => (
                         <option key={bank} value={bank}>
                           {bank}
                         </option>
@@ -3022,7 +3116,7 @@ export default function App() {
                       name="card"
                       value={formData.card ?? ""}
                       onChange={handleFormChange}
-                      className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-emerald-500 bg-white"
+                      className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white"
                     >
                       {bankCards[formData.bank]?.map((card) => (
                         <option key={card.name} value={card.name}>
@@ -3079,17 +3173,6 @@ export default function App() {
             </div>
           </div>
         )}
-
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-          .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-          .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-          .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-        `,
-          }}
-        />
       </div>
     </div>
   );
