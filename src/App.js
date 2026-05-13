@@ -818,7 +818,7 @@ export default function App() {
           </header>
         )}
 
-        <main className="flex-1 overflow-y-auto p-4 custom-scrollbar pb-32">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 custom-scrollbar pb-32">
           
           {/* == 明細頁 == */}
           {activeTab === 'list' && (
@@ -1072,7 +1072,10 @@ export default function App() {
           {/* == 設定頁 == */}
           {activeTab === 'settings' && (
             <div className="space-y-6 pt-4">
-              <h2 className="text-2xl font-bold text-gray-800 px-2 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
+              <div className="flex justify-between items-center px-2">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
+                <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.0.1</span>
+              </div>
 
               {/* === 帳號與雲端同步區塊 === */}
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
