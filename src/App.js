@@ -190,6 +190,9 @@ export default function App() {
   const [importStatus, setImportStatus] = useState('');
   const fileInputRef = useRef(null);
 
+  // 刪除防呆狀態
+  const [expenseToDelete, setExpenseToDelete] = useState(null);
+
   // 初始化權限驗證
   useEffect(() => {
     if (!auth) return;
@@ -544,12 +547,13 @@ export default function App() {
     }
   };
 
-  const handleDelete = async (id, e) => { 
-    if (e) { e.preventDefault(); e.stopPropagation(); }
+  // 將原本直接刪除的邏輯，改為彈窗點擊後才執行的真實刪除
+  const executeDelete = async (id) => { 
     if (!user) return; 
     try {
         const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'expenses', id);
         await deleteDoc(docRef); 
+        setExpenseToDelete(null); // 刪除成功後關閉彈窗
     } catch (error) {
         console.error("Error deleting document: ", error);
     }
@@ -885,7 +889,8 @@ export default function App() {
                         <span className="font-bold text-lg text-gray-800 font-mono">-${expense.amount}</span>
                         <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition absolute right-3 bottom-2 md:relative md:right-auto md:bottom-auto md:mt-2">
                            <button type="button" onPointerDown={() => openExpenseModal(expense)} className="text-gray-400 hover:text-emerald-600 p-1 bg-white border border-gray-200 rounded-full shadow-sm z-10 cursor-pointer"><Edit2 size={12} /></button>
-                           <button type="button" onPointerDown={(e) => handleDelete(expense.id, e)} className="text-red-400 hover:text-red-600 p-1 bg-white border border-gray-200 rounded-full shadow-sm z-10 cursor-pointer"><Trash2 size={12} /></button>
+                           {/* 將垃圾桶點擊事件改為觸發防呆彈窗 */}
+                           <button type="button" onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setExpenseToDelete(expense); }} className="text-red-400 hover:text-red-600 p-1 bg-white border border-gray-200 rounded-full shadow-sm z-10 cursor-pointer"><Trash2 size={12} /></button>
                         </div>
                       </div>
                     </div>
@@ -1493,6 +1498,32 @@ export default function App() {
                   <Check size={24} />{editingExpenseId ? '更新紀錄' : '儲存紀錄'}
                 </button>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* 刪除防呆確認 Modal */}
+        {/* ========================================== */}
+        {expenseToDelete && (
+          <div className="fixed inset-0 bg-black/60 z-[70] flex justify-center items-center backdrop-blur-sm p-4 transition-opacity pointer-events-auto">
+            <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4">
+                <Trash2 size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">確定要刪除這筆紀錄嗎？</h3>
+              <p className="text-sm text-gray-500 mb-6">此動作無法復原，請確認您要刪除的內容：</p>
+              
+              <div className="text-left bg-gray-50 p-4 rounded-2xl w-full border border-gray-200 flex flex-col gap-1 mb-6">
+                <span className="text-xs text-gray-400">{expenseToDelete.date} • {expenseToDelete.category}</span>
+                <span className="font-bold text-gray-800 text-lg leading-snug">{expenseToDelete.description}</span>
+                <span className="font-mono text-xl text-red-600 font-bold mt-1">NT$ {expenseToDelete.amount.toLocaleString()}</span>
+              </div>
+
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setExpenseToDelete(null)} className="flex-1 bg-gray-100 text-gray-700 py-3.5 rounded-xl font-bold hover:bg-gray-200 transition active:scale-95">取消</button>
+                <button onClick={() => executeDelete(expenseToDelete.id)} className="flex-1 bg-red-500 text-white py-3.5 rounded-xl font-bold hover:bg-red-600 transition active:scale-95 shadow-md shadow-red-200">確定刪除</button>
+              </div>
             </div>
           </div>
         )}
