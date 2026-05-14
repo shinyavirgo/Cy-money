@@ -7,7 +7,7 @@ import {
   MoreHorizontal, AlertCircle, Settings, Edit2, Gift, TrendingUp, Save, ShoppingCart, Coffee, Heart, Briefcase, 
   Plane, Landmark, Wallet, Banknote, PiggyBank, Monitor, Smartphone, Bus, Train, Scissors, Camera, Music, Ticket, 
   Umbrella, ShoppingBag, Package, Globe, Map, Zap, Award, Star, Palette, Upload, Download, FileText, LogOut,
-  UserCircle
+  UserCircle, Loader2
 } from 'lucide-react';
 
 // ==========================================
@@ -151,6 +151,43 @@ try {
 }
 
 // ==========================================
+// 輔助函式與全域防呆樣式
+// ==========================================
+const extractBillingDay = (billingStr) => {
+  if (!billingStr || billingStr === '無') return 999;
+  const match = billingStr.match(/\d+/);
+  return match ? parseInt(match[0], 10) : 999;
+};
+
+// 強制解除 iOS PWA 輸入框封印與防左右滾動
+const GlobalStyles = () => (
+  <style dangerouslySetInnerHTML={{__html: `
+    body, html, #root {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #e5e7eb;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-overflow-scrolling: touch;
+      overflow-x: hidden; /* 全域強制防止左右滑動 */
+    }
+    input, textarea, select {
+      font-size: 16px !important; /* 防自動放大 */
+      -webkit-appearance: none;
+      -webkit-user-select: text !important;
+      user-select: text !important;
+      pointer-events: auto !important;
+      touch-action: manipulation !important;
+    }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  `}} />
+);
+
+// ==========================================
 // 3. 主應用程式組件
 // ==========================================
 export default function App() {
@@ -186,12 +223,33 @@ export default function App() {
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
+  // 新增：Webhook 網址儲存狀態
+  const [webhookUrl, setWebhookUrl] = useState('');
+
   // 匯出匯入狀態
   const [importStatus, setImportStatus] = useState('');
   const fileInputRef = useRef(null);
 
   // 刪除防呆狀態
   const [expenseToDelete, setExpenseToDelete] = useState(null);
+  const [showUnusedCards, setShowUnusedCards] = useState(false);
+
+  // 銀行排序 (現金最前，其餘依結帳日排序)
+  const sortedBankNames = useMemo(() => {
+    return Object.keys(bankCards).sort((a, b) => {
+      if (a === '現金') return -1;
+      if (b === '現金') return 1;
+      const getMinDay = (bName) => {
+        const cards = bankCards[bName] || [];
+        if (cards.length === 0) return 999;
+        return Math.min(...cards.map(c => extractBillingDay(c.billing)));
+      };
+      const dayA = getMinDay(a);
+      const dayB = getMinDay(b);
+      if (dayA !== dayB) return dayA - dayB;
+      return a.localeCompare(b);
+    });
+  }, [bankCards]);
 
   // 初始化權限驗證
   useEffect(() => {
@@ -267,6 +325,7 @@ export default function App() {
         setExpenses([]);
         setCategories(DEFAULT_CATEGORIES);
         setBankCards(DEFAULT_BANK_CARDS);
+        setWebhookUrl('');
         setActiveTab('list');
       } catch (error) {
         console.error("Logout error:", error);
@@ -283,6 +342,7 @@ export default function App() {
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data.categories) setCategories(data.categories);
+          if (data.webhookUrl) setWebhookUrl(data.webhookUrl); // 讀取 Webhook
           
           if (data.bankCards) {
              const migratedBanks = {};
@@ -369,12 +429,6 @@ export default function App() {
     const startDate = new Date(viewYear, viewMonthNum - 2, day + 1);
     const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     return { startStr: formatDate(startDate), endStr: formatDate(endDate), cycleLabel: `${startDate.getMonth()+1}/${startDate.getDate()} ~ ${endDate.getMonth()+1}/${endDate.getDate()}` };
-  };
-
-  const extractBillingDay = (billingStr) => {
-    if (!billingStr || billingStr === '無') return 999;
-    const match = billingStr.match(/\d+/);
-    return match ? parseInt(match[0], 10) : 999;
   };
 
   const { filteredExpenses, totalMonth, bankTotals, cardTotals, estimatedCashback, estimatedPoints, rewardLimitTracking } = useMemo(() => {
@@ -538,6 +592,19 @@ export default function App() {
       } else {
         expenseData.createdAt = new Date().toISOString();
         await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'expenses'), expenseData);
+        
+        // 🚀 新增：觸發自動化 Webhook 備份至 Google Sheets
+        if (webhookUrl && webhookUrl.startsWith('http')) {
+          try {
+            fetch(webhookUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(expenseData)
+            });
+          } catch (err) {
+            console.error('Webhook 發送失敗:', err);
+          }
+        }
       }
       
       setIsModalOpen(false);
@@ -547,13 +614,12 @@ export default function App() {
     }
   };
 
-  // 將原本直接刪除的邏輯，改為彈窗點擊後才執行的真實刪除
   const executeDelete = async (id) => { 
     if (!user) return; 
     try {
         const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'expenses', id);
         await deleteDoc(docRef); 
-        setExpenseToDelete(null); // 刪除成功後關閉彈窗
+        setExpenseToDelete(null); 
     } catch (error) {
         console.error("Error deleting document: ", error);
     }
@@ -723,29 +789,19 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  const [showUnusedCards, setShowUnusedCards] = useState(false);
-
-  const sortedBankNames = useMemo(() => {
-    return Object.keys(bankCards).sort((a, b) => {
-      if (a === '現金') return -1;
-      if (b === '現金') return 1;
-      const getMinDay = (bName) => {
-        const cards = bankCards[bName] || [];
-        if (cards.length === 0) return 999;
-        return Math.min(...cards.map(c => extractBillingDay(c.billing)));
-      };
-      const dayA = getMinDay(a);
-      const dayB = getMinDay(b);
-      if (dayA !== dayB) return dayA - dayB;
-      return a.localeCompare(b);
-    });
-  }, [bankCards]);
-
-  if (isLoading && !user) return <div className="w-full h-[100dvh] flex items-center justify-center bg-gray-50 text-emerald-600">載入中...</div>;
+  if (isLoading && !user) {
+    return (
+      <div className="w-full min-h-[100dvh] flex items-center justify-center bg-gray-50 text-emerald-600 relative">
+        <GlobalStyles />
+        <Loader2 className="animate-spin mr-2" size={20} /> 載入中...
+      </div>
+    );
+  }
 
   if (!user) {
     return (
       <div className="w-full min-h-[100dvh] bg-gray-200 flex justify-center items-center font-sans p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <GlobalStyles />
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 space-y-6">
           <div className="text-center">
             <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -795,10 +851,18 @@ export default function App() {
     );
   }
 
-  if (isLoading || !settingsLoaded) return <div className="w-full h-[100dvh] flex items-center justify-center bg-gray-50 text-emerald-600">讀取資料中...</div>;
+  if (isLoading || !settingsLoaded) {
+    return (
+      <div className="w-full h-[100dvh] flex items-center justify-center bg-gray-50 text-emerald-600 relative overflow-x-hidden">
+        <GlobalStyles />
+        <Loader2 className="animate-spin mr-2" size={20} /> 讀取資料中...
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-[100dvh] bg-gray-200 flex justify-center font-sans overflow-hidden">
+      <GlobalStyles />
       <div className="w-full max-w-md bg-gray-50 relative flex flex-col h-full shadow-2xl overflow-hidden">
         
         {/* Header */}
@@ -866,13 +930,11 @@ export default function App() {
                       <div className="flex-1 min-w-0 flex flex-col justify-center">
                         <p className="font-bold text-gray-800 truncate leading-snug">{expense.description}</p>
                         <div className="flex flex-col gap-1 mt-0.5">
-                          {/* 銀行與卡片 (加入微型專屬圖示) */}
                           <span className="text-[11px] font-medium text-gray-600 flex items-center gap-1">
                             <CardIcon size={12} className={cardTextColor} />
                             <span className="truncate max-w-[120px]">{expense.bank}({expense.card})</span>
                           </span>
                           
-                          {/* 回饋標籤 */}
                           {appliedBadges.length > 0 && (
                             <div className="flex flex-wrap gap-1">
                               {appliedBadges.map((badge, idx) => (
@@ -889,7 +951,6 @@ export default function App() {
                         <span className="font-bold text-lg text-gray-800 font-mono">-${expense.amount}</span>
                         <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition absolute right-3 bottom-2 md:relative md:right-auto md:bottom-auto md:mt-2">
                            <button type="button" onPointerDown={() => openExpenseModal(expense)} className="text-gray-400 hover:text-emerald-600 p-1 bg-white border border-gray-200 rounded-full shadow-sm z-10 cursor-pointer"><Edit2 size={12} /></button>
-                           {/* 將垃圾桶點擊事件改為觸發防呆彈窗 */}
                            <button type="button" onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setExpenseToDelete(expense); }} className="text-red-400 hover:text-red-600 p-1 bg-white border border-gray-200 rounded-full shadow-sm z-10 cursor-pointer"><Trash2 size={12} /></button>
                         </div>
                       </div>
@@ -904,7 +965,6 @@ export default function App() {
           {activeTab === 'report' && (
             <div className="space-y-6">
               
-              {/* 1. 本期預估賺取回饋 */}
               <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-5 rounded-3xl shadow-sm border border-yellow-100">
                 <h3 className="text-yellow-800 font-semibold mb-4 flex items-center gap-2"><Gift size={18} /> 本期預估賺取回饋</h3>
                 <div className="grid grid-cols-2 gap-3">
@@ -924,7 +984,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 2. 各卡額度與回饋狀態 (合併顯示並自動折疊未刷卡片) */}
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                 <h3 className="text-gray-500 font-semibold mb-4 flex items-center gap-2"><AlertCircle size={18} />各卡額度與回饋狀態</h3>
                 <div className="space-y-5">
@@ -971,7 +1030,6 @@ export default function App() {
                                 {card.billing && card.billing !== '無' && <span className="text-[10px] text-gray-400 ml-2 font-normal">結帳日: {card.billing}</span>}
                               </span>
                               
-                              {/* 總信用額度 */}
                               {hasCreditLimit && (
                                 <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
                                   <div className="flex justify-between items-end mb-1.5">
@@ -986,7 +1044,6 @@ export default function App() {
                                 </div>
                               )}
 
-                              {/* 回饋追蹤 */}
                               {cardTracking.length > 0 && (
                                 <div className="space-y-2">
                                   {cardTracking.map((track, idx) => {
@@ -1044,7 +1101,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 3. 對帳單 (依然在最下方並依照結帳日排序) */}
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                 <h3 className="text-gray-500 font-semibold mb-4 flex items-center gap-2"><CreditCard size={18} />各家銀行卡費總計 (對帳單)</h3>
                 <div className="space-y-3">
@@ -1079,7 +1135,7 @@ export default function App() {
             <div className="space-y-6 pt-4">
               <div className="flex justify-between items-center px-2">
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
-                <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.0.1</span>
+                <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.0.2</span>
               </div>
 
               {/* === 帳號與雲端同步區塊 === */}
@@ -1091,7 +1147,23 @@ export default function App() {
                      <div className="bg-indigo-50 text-indigo-800 p-3 rounded-xl text-sm border border-indigo-100">
                         目前登入帳號：<br/><span className="font-bold text-base">{user.email}</span>
                      </div>
-                     <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 px-3 py-3 rounded-xl text-sm font-bold transition border border-red-200">
+                     
+                     <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs mt-1">
+                       <p className="text-gray-700 font-bold mb-1 flex items-center gap-1"><Zap size={14} className="text-yellow-500" /> 自動化備份至 Google Sheets (Webhook)</p>
+                       <p className="text-[10px] text-gray-500 mb-2 leading-relaxed">請將 Make.com 或 Zapier 的 Webhook 網址貼在下方，新增支出時將會自動拋送資料給系統。</p>
+                       <input 
+                         type="url" 
+                         placeholder="https://hook.us1.make.com/..." 
+                         value={webhookUrl}
+                         onChange={(e) => {
+                           setWebhookUrl(e.target.value);
+                           setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'userConfig'), { webhookUrl: e.target.value }, { merge: true });
+                         }}
+                         className="w-full border border-gray-300 rounded px-2 py-2 text-sm outline-none focus:border-emerald-500 focus:bg-white transition bg-gray-50"
+                       />
+                     </div>
+
+                     <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 px-3 py-3 rounded-xl text-sm font-bold transition border border-red-200 mt-2">
                        <LogOut size={18} /> 登出並切換至訪客模式
                      </button>
                    </div>
@@ -1161,7 +1233,6 @@ export default function App() {
                     const isEditing = editingCategory === cat.id;
                     return (
                       <div key={cat.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-transparent hover:border-gray-200">
-                        {/* 編輯模式下，圖示變成可點擊開啟選擇器 */}
                         {isEditing ? (
                           <button type="button" onClick={() => setPickerConfig({ type: 'category', id: cat.id, iconName: cat.iconName, color: cat.color })} className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-dashed border-gray-400 hover:scale-105 transition ${cat.color}`} title="點擊更換圖示與顏色">
                              <IconComponent size={20} />
@@ -1194,10 +1265,10 @@ export default function App() {
                 <div className="mb-4">
                   <h3 className="text-gray-700 font-bold flex items-center gap-2 mb-2"><CreditCard size={18} className="text-emerald-500" />銀行與回饋管理</h3>
                   <div className="flex gap-2 mb-4">
-                    <input type="text" placeholder="新增銀行 (例: 渣打)" value={newBankName ?? ''} onChange={(e) => setNewBankName(e.target.value)} className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"/>
-                    <button onClick={() => {if(newBankName.trim() && !bankCards[newBankName.trim()]){ setBankCards({...bankCards, [newBankName.trim()]: []}); setNewBankName(''); }}} className="bg-emerald-100 text-emerald-700 px-3 rounded-xl hover:bg-emerald-200 font-medium">新增</button>
+                    <input type="text" placeholder="新增銀行 (例: 渣打)" value={newBankName ?? ''} onChange={(e) => setNewBankName(e.target.value)} className="flex-1 min-w-0 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"/>
+                    <button onClick={() => {if(newBankName.trim() && !bankCards[newBankName.trim()]){ setBankCards({...bankCards, [newBankName.trim()]: []}); setNewBankName(''); }}} className="bg-emerald-100 text-emerald-700 px-3 rounded-xl hover:bg-emerald-200 font-medium shrink-0">新增</button>
                     {/* 加入一鍵還原預設的終極按鈕 */}
-                    <button onClick={() => {if(window.confirm('確定要還原為系統最新預設的銀行與回饋嗎？(這會覆蓋掉您目前自訂的卡片)')){ setBankCards(DEFAULT_BANK_CARDS); saveSettingsToCloud(categories, DEFAULT_BANK_CARDS); }}} className="bg-red-50 text-red-600 px-3 rounded-xl hover:bg-red-100 font-medium whitespace-nowrap" title="如果您的卡片設定跑掉，可以點此重置">還原預設</button>
+                    <button onClick={() => {if(window.confirm('確定要還原為系統最新預設的銀行與回饋嗎？(這會覆蓋掉您目前自訂的卡片)')){ setBankCards(DEFAULT_BANK_CARDS); saveSettingsToCloud(categories, DEFAULT_BANK_CARDS); }}} className="bg-red-50 text-red-600 px-3 rounded-xl hover:bg-red-100 font-medium whitespace-nowrap shrink-0" title="如果您的卡片設定跑掉，可以點此重置">還原預設</button>
                   </div>
                 </div>
 
@@ -1425,8 +1496,8 @@ export default function App() {
 
         {/* 新增/編輯支出 Modal */}
         {isModalOpen && (
-          <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity">
-            <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl overflow-y-auto max-h-[90dvh]">
+          <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity pointer-events-auto">
+            <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 pb-[calc(24px+env(safe-area-inset-bottom))] md:pb-6 shadow-2xl overflow-y-auto max-h-[90dvh]">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">{editingExpenseId ? '編輯明細' : '新增支出'}</h2>
                 <button onClick={() => setIsModalOpen(false)} className="p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200"><X size={20} /></button>
