@@ -159,6 +159,16 @@ const extractBillingDay = (billingStr) => {
   return match ? parseInt(match[0], 10) : 999;
 };
 
+const getBillingCycleDates = (viewYear, viewMonthNum, billingDayStr) => {
+  const match = billingDayStr.match(/\d+/);
+  if (!match) return null;
+  const day = parseInt(match[0], 10);
+  const endDate = new Date(viewYear, viewMonthNum - 1, day);
+  const startDate = new Date(viewYear, viewMonthNum - 2, day + 1);
+  const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return { startStr: formatDate(startDate), endStr: formatDate(endDate), cycleLabel: `${startDate.getMonth()+1}/${startDate.getDate()} ~ ${endDate.getMonth()+1}/${endDate.getDate()}` };
+};
+
 // 強制解除 iOS PWA 輸入框封印與防左右滾動
 const GlobalStyles = () => (
   <style dangerouslySetInnerHTML={{__html: `
@@ -223,8 +233,9 @@ export default function App() {
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // 新增：Webhook 網址儲存狀態
+  // 新增：Webhook 狀態與測試發送中提示
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [isTestingWebhook, setIsTestingWebhook] = useState(false);
 
   // 匯出匯入狀態
   const [importStatus, setImportStatus] = useState('');
@@ -421,71 +432,127 @@ export default function App() {
       { categories: newCategories, bankCards: newBankCards, updatedAt: new Date().toISOString() }, { merge: true });
   };
 
-  const getBillingCycleDates = (viewYear, viewMonthNum, billingDayStr) => {
-    const match = billingDayStr.match(/\d+/);
-    if (!match) return null;
-    const day = parseInt(match[0], 10);
-    const endDate = new Date(viewYear, viewMonthNum - 1, day);
-    const startDate = new Date(viewYear, viewMonthNum - 2, day + 1);
-    const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    return { startStr: formatDate(startDate), endStr: formatDate(endDate), cycleLabel: `${startDate.getMonth()+1}/${startDate.getDate()} ~ ${endDate.getMonth()+1}/${endDate.getDate()}` };
-  };
-
-  const { filteredExpenses, totalMonth, bankTotals, cardTotals, estimatedCashback, estimatedPoints, rewardLimitTracking } = useMemo(() => {
+  const { filteredExpenses, totalMonth, bankTotals, cardTotals, estimatedCashback, estimatedPoints, rewardLimitTracking, bankRewards } = useMemo(() => {
+    // 1. 本月明細列表 (單純月曆月，供明細 Tab 使用)
     const filtered = expenses.filter(exp => exp.date.startsWith(currentMonth));
     let total = 0;
-    const bnkTotals = {}, crdTotals = {};
-    
     filtered.forEach(exp => {
-      const amt = parseFloat(exp.amount) || 0;
-      total += amt;
-      bnkTotals[exp.bank] = (bnkTotals[exp.bank] || 0) + amt;
-      crdTotals[exp.card] = (crdTotals[exp.card] || 0) + amt;
+      total += parseFloat(exp.amount) || 0;
     });
 
     const [viewYear, viewMonth] = currentMonth.split('-').map(Number);
+    
+    const bnkTotals = {};
+    const crdTotals = {};
+    const tracking = [];
     let finalCashback = 0;
     const finalPoints = {};
-    const tracking = [];
+    const bRewards = {};
 
-    Object.values(bankCards).flat().forEach(cardInfo => {
-      if (!cardInfo.rewards || cardInfo.rewards.length === 0) return;
+    // 初始化各銀行的回饋統計
+    Object.keys(bankCards).forEach(b => {
+      bRewards[b] = { cashback: 0, points: {} };
+    });
 
-      let startStr, endStr, label;
-      if (cardInfo.rewardCycle === 'billing' && cardInfo.billing !== '無') {
-        const cycleInfo = getBillingCycleDates(viewYear, viewMonth, cardInfo.billing);
-        if (cycleInfo) { startStr = cycleInfo.startStr; endStr = cycleInfo.endStr; label = `結帳週期 (${cycleInfo.cycleLabel})`; } 
-        else { startStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; endStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-31`; label = '月曆月'; }
-      } else {
-        startStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; endStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-31`; label = '月曆月';
-      }
+    // 2. 計算各卡片的「對帳單週期」與「預估回饋」
+    Object.entries(bankCards).forEach(([bankName, cards]) => {
+      cards.forEach(cardInfo => {
+        
+        // --- A. 對帳單週期計算 ---
+        let billStartStr, billEndStr;
+        if (cardInfo.billing !== '無') {
+          const cycleInfo = getBillingCycleDates(viewYear, viewMonth, cardInfo.billing);
+          if (cycleInfo) {
+            billStartStr = cycleInfo.startStr;
+            billEndStr = cycleInfo.endStr;
+          } else {
+            billStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; 
+            const lastDay = new Date(viewYear, viewMonth, 0).getDate();
+            billEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${lastDay}`; 
+          }
+        } else {
+          billStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; 
+          const lastDay = new Date(viewYear, viewMonth, 0).getDate();
+          billEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${lastDay}`; 
+        }
 
-      cardInfo.rewards.forEach(rule => {
-        let cycleSpent = 0;
+        // 結算該週期內的消費至對帳單
         expenses.forEach(exp => {
-          if (exp.card === cardInfo.name && exp.date >= startStr && exp.date <= endStr) {
-            if (exp.appliedRewards && exp.appliedRewards.includes(rule.id)) {
-              cycleSpent += (parseFloat(exp.amount) || 0);
-            }
+          if (exp.bank === bankName && exp.card === cardInfo.name && exp.date >= billStartStr && exp.date <= billEndStr) {
+            const amt = parseFloat(exp.amount) || 0;
+            bnkTotals[bankName] = (bnkTotals[bankName] || 0) + amt;
+            crdTotals[cardInfo.name] = (crdTotals[cardInfo.name] || 0) + amt;
           }
         });
 
-        if (rule.limit) {
-          tracking.push({ cardName: cardInfo.name, ruleName: rule.name, spent: cycleSpent, limit: rule.limit, cycleLabel: label });
+        // --- B. 回饋週期計算 ---
+        if (!cardInfo.rewards || cardInfo.rewards.length === 0) return;
+
+        let rewardStartStr, rewardEndStr, label;
+        if (cardInfo.rewardCycle === 'billing' && cardInfo.billing !== '無') {
+          const cycleInfo = getBillingCycleDates(viewYear, viewMonth, cardInfo.billing);
+          if (cycleInfo) { 
+            rewardStartStr = cycleInfo.startStr; 
+            rewardEndStr = cycleInfo.endStr; 
+            label = `結帳週期 (${cycleInfo.cycleLabel})`; 
+          } else { 
+            rewardStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; 
+            const lastDay = new Date(viewYear, viewMonth, 0).getDate();
+            rewardEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${lastDay}`; 
+            label = '月曆月'; 
+          }
+        } else {
+          rewardStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; 
+          const lastDay = new Date(viewYear, viewMonth, 0).getDate();
+          rewardEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${lastDay}`; 
+          label = '月曆月';
         }
 
-        let cappedSpent = rule.limit ? Math.min(cycleSpent, rule.limit) : cycleSpent;
+        // 依據規則統計回饋
+        cardInfo.rewards.forEach(rule => {
+          let cycleSpent = 0;
+          expenses.forEach(exp => {
+            if (exp.bank === bankName && exp.card === cardInfo.name && exp.date >= rewardStartStr && exp.date <= rewardEndStr) {
+              if (exp.appliedRewards && exp.appliedRewards.includes(rule.id)) {
+                cycleSpent += (parseFloat(exp.amount) || 0);
+              }
+            }
+          });
 
-        if (rule.type === 'cashback') {
-          finalCashback += cappedSpent * ((parseFloat(rule.rate) || 0) / 100);
-        } else if (rule.type === 'points') {
-          let spendReq = parseFloat(rule.spend) || 1;
-          let earnAmt = parseFloat(rule.earn) || 0;
-          let earned = Math.floor(cappedSpent / spendReq) * earnAmt;
-          let unit = rule.unit || '點';
-          finalPoints[unit] = (finalPoints[unit] || 0) + earned;
-        }
+          if (rule.limit) {
+            tracking.push({ cardName: cardInfo.name, ruleName: rule.name, spent: cycleSpent, limit: rule.limit, cycleLabel: label });
+          }
+
+          let cappedSpent = rule.limit ? Math.min(cycleSpent, rule.limit) : cycleSpent;
+
+          if (cappedSpent > 0) {
+            if (rule.type === 'cashback') {
+              const earnCash = cappedSpent * ((parseFloat(rule.rate) || 0) / 100);
+              finalCashback += earnCash;
+              bRewards[bankName].cashback += earnCash;
+            } else if (rule.type === 'points') {
+              let spendReq = parseFloat(rule.spend) || 1;
+              let earnAmt = parseFloat(rule.earn) || 0;
+              let earned = Math.floor(cappedSpent / spendReq) * earnAmt; // 確保單筆與週期加總的邏輯正確
+              let unit = rule.unit || '點';
+              finalPoints[unit] = (finalPoints[unit] || 0) + earned;
+              
+              if (!bRewards[bankName].points[unit]) bRewards[bankName].points[unit] = 0;
+              bRewards[bankName].points[unit] += earned;
+            }
+          }
+        });
       });
+    });
+
+    // 處理已被刪除或沒設定的卡片 (防呆：以月曆月加總)
+    filtered.forEach(exp => {
+      const cardInfo = (bankCards[exp.bank] || []).find(c => c.name === exp.card);
+      if (!cardInfo) {
+        const amt = parseFloat(exp.amount) || 0;
+        bnkTotals[exp.bank] = (bnkTotals[exp.bank] || 0) + amt;
+        crdTotals[exp.card] = (crdTotals[exp.card] || 0) + amt;
+      }
     });
 
     return { 
@@ -497,10 +564,11 @@ export default function App() {
         const dayB = extractBillingDay(bankCards[b[0]]?.[0]?.billing);
         if (dayA !== dayB) return dayA - dayB;
         return b[1] - a[1];
-      }), 
+      }).filter(entry => entry[1] > 0 || (bankCards[entry[0]] && bankCards[entry[0]].length > 0)), 
       cardTotals: crdTotals,
       estimatedCashback: Math.round(finalCashback), estimatedPoints: Object.entries(finalPoints).map(([u, p]) => [u, Math.round(p)]),
-      rewardLimitTracking: tracking.sort((a, b) => (b.spent / b.limit) - (a.spent / a.limit))
+      rewardLimitTracking: tracking.sort((a, b) => (b.spent / b.limit) - (a.spent / a.limit)),
+      bankRewards: bRewards
     };
   }, [expenses, currentMonth, bankCards]);
 
@@ -593,16 +661,37 @@ export default function App() {
         expenseData.createdAt = new Date().toISOString();
         await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'expenses'), expenseData);
         
-        // 🚀 新增：觸發自動化 Webhook 備份至 Google Sheets
-        if (webhookUrl && webhookUrl.startsWith('http')) {
+        // 🚀 新增：觸發自動化 Webhook 備份至 Google Sheets (背景發送，不阻擋畫面)
+        if (webhookUrl && webhookUrl.trim().startsWith('http')) {
           try {
-            fetch(webhookUrl, {
+            // 將內部 ID 轉換為中文回饋名稱，讓 Google Sheets 顯示人類看得懂的文字
+            const cardInfo = (bankCards[expenseData.bank] || []).find(c => c.name === expenseData.card);
+            let rewardTexts = [];
+            if (cardInfo && cardInfo.rewards && expenseData.appliedRewards) {
+              cardInfo.rewards.forEach(r => {
+                if (expenseData.appliedRewards.includes(r.id)) {
+                  if (r.type === 'cashback') rewardTexts.push(`${r.name} ${r.rate}%`);
+                  if (r.type === 'points') rewardTexts.push(`${r.name} ${r.earn}${r.unit}`);
+                }
+              });
+            }
+
+            const payload = {
+              ...expenseData,
+              rewardDetails: rewardTexts.length > 0 ? rewardTexts.join('、') : '無'
+            };
+
+            fetch(webhookUrl.trim(), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(expenseData)
+              body: JSON.stringify(payload)
+            }).then(res => {
+              if(!res.ok) console.warn("Webhook 回應狀態碼異常:", res.status);
+            }).catch(err => {
+              console.error('Webhook 網路錯誤 (可能為 CORS 或無網路):', err);
             });
           } catch (err) {
-            console.error('Webhook 發送失敗:', err);
+            console.error('Webhook 發送例外錯誤:', err);
           }
         }
       }
@@ -698,18 +787,30 @@ export default function App() {
   };
 
   const handleExportCSV = () => {
-    const headers = ['日期', '分類', '項目說明', '金額', '銀行', '卡別', '結帳日'];
+    const headers = ['日期', '分類', '項目說明', '金額', '銀行', '卡別', '結帳日', '回饋項目'];
     const csvContent = [
       headers.join(','),
-      ...expenses.map(e => [
-        e.date,
-        e.category,
-        `"${(e.description || '').replace(/"/g, '""')}"`,
-        e.amount,
-        e.bank,
-        e.card,
-        e.billingDate
-      ].join(','))
+      ...expenses.map(e => {
+        let rTexts = [];
+        const cInfo = (bankCards[e.bank] || []).find(c => c.name === e.card);
+        if (cInfo && cInfo.rewards && e.appliedRewards) {
+          cInfo.rewards.forEach(r => {
+            if (e.appliedRewards.includes(r.id)) {
+              rTexts.push(r.type === 'cashback' ? `${r.name} ${r.rate}%` : `${r.name} ${r.earn}${r.unit}`);
+            }
+          });
+        }
+        return [
+          e.date,
+          e.category,
+          `"${(e.description || '').replace(/"/g, '""')}"`,
+          e.amount,
+          e.bank,
+          e.card,
+          e.billingDate,
+          `"${rTexts.join('、')}"`
+        ].join(',')
+      })
     ].join('\n');
 
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
@@ -739,6 +840,12 @@ export default function App() {
 
       let successCount = 0;
       let errorCount = 0;
+      let skippedCount = 0; // 新增：重複略過計數
+
+      // 建立現有資料的「特徵指紋」，防止重複匯入相同的紀錄
+      const existingSignatures = new Set(
+        expenses.map(exp => `${exp.date}-${exp.category}-${exp.description}-${exp.amount}-${exp.bank}-${exp.card}`)
+      );
 
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
@@ -758,19 +865,33 @@ export default function App() {
           }
 
           if (!isNaN(amount) && amount > 0) {
+            const dateFmt = parsedDate.toISOString().slice(0, 10);
+            const categoryFmt = cols[1] || '其他';
+            const descFmt = cols[2] || '未命名項目';
+            const bankFmt = cols[4] || '現金';
+            const cardFmt = cols[5] || '現金';
+            
+            const signature = `${dateFmt}-${categoryFmt}-${descFmt}-${amount}-${bankFmt}-${cardFmt}`;
+
+            if (existingSignatures.has(signature)) {
+              skippedCount++;
+              continue; // 發現特徵完全相同的紀錄，略過不匯入
+            }
+
             try {
               const expenseData = {
-                date: parsedDate.toISOString().slice(0, 10),
-                category: cols[1] || '其他',
-                description: cols[2] || '未命名項目',
+                date: dateFmt,
+                category: categoryFmt,
+                description: descFmt,
                 amount: amount,
-                bank: cols[4] || '現金',
-                card: cols[5] || '現金',
+                bank: bankFmt,
+                card: cardFmt,
                 billingDate: cols[6] || '無',
                 appliedRewards: [], 
                 createdAt: new Date().toISOString()
               };
               await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'expenses'), expenseData);
+              existingSignatures.add(signature); // 把剛新增的指紋也加入，防止 CSV 內部自己就有重複
               successCount++;
             } catch (err) {
               console.error('Error importing row:', row, err);
@@ -783,7 +904,7 @@ export default function App() {
            errorCount++;
         }
       }
-      setImportStatus(`匯入完成！成功：${successCount} 筆，失敗/略過：${errorCount} 筆。`);
+      setImportStatus(`匯入完成！新增：${successCount}，重複略過：${skippedCount}，失敗：${errorCount}。`);
       if(fileInputRef.current) fileInputRef.current.value = '';
     };
     reader.readAsText(file);
@@ -964,25 +1085,6 @@ export default function App() {
           {/* == 報表頁 == */}
           {activeTab === 'report' && (
             <div className="space-y-6">
-              
-              <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-5 rounded-3xl shadow-sm border border-yellow-100">
-                <h3 className="text-yellow-800 font-semibold mb-4 flex items-center gap-2"><Gift size={18} /> 本期預估賺取回饋</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-white/60 rounded-xl p-3 text-center shadow-sm">
-                    <p className="text-xs text-gray-500 mb-1">現金回饋</p>
-                    <p className="font-bold text-xl text-yellow-600 font-mono">+${estimatedCashback.toLocaleString()}</p>
-                  </div>
-                  {estimatedPoints.length === 0 && (
-                    <div className="bg-white/60 rounded-xl p-3 text-center flex items-center justify-center shadow-sm"><p className="text-xs text-gray-400">尚無點數資料</p></div>
-                  )}
-                  {estimatedPoints.map(([unit, points]) => (
-                    <div key={unit} className="bg-white/60 rounded-xl p-3 text-center shadow-sm">
-                      <p className="text-xs text-gray-500 mb-1">{unit}</p>
-                      <p className="font-bold text-xl text-yellow-600 font-mono">+{points.toLocaleString()}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
 
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                 <h3 className="text-gray-500 font-semibold mb-4 flex items-center gap-2"><AlertCircle size={18} />各卡額度與回饋狀態</h3>
@@ -1109,18 +1211,39 @@ export default function App() {
                     const firstCard = bankCards[bankName]?.[0];
                     const BankIcon = ICON_MAP[firstCard?.iconName] || CreditCard;
                     const bColor = firstCard?.color || 'bg-gray-100 text-gray-600';
+                    const rewards = bankRewards[bankName]; // 抓取該銀行產生的回饋
+                    
                     return (
-                      <div key={bankName} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-transparent hover:border-gray-200">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${bColor}`}><BankIcon size={14} /></div>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-gray-700">{bankName}</span>
-                            {firstCard?.billing && firstCard.billing !== '無' && (
-                              <span className="text-[10px] text-gray-400">結帳日: {firstCard.billing}</span>
-                            )}
+                      <div key={bankName} className="flex flex-col p-3 bg-gray-50 rounded-xl border border-transparent hover:border-gray-200 transition">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${bColor}`}><BankIcon size={14} /></div>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-gray-700">{bankName}</span>
+                              {firstCard?.billing && firstCard.billing !== '無' && (
+                                <span className="text-[10px] text-gray-400">結帳日: {firstCard.billing}</span>
+                              )}
+                            </div>
                           </div>
+                          <span className="font-mono font-bold text-gray-800 text-lg">${amount.toLocaleString()}</span>
                         </div>
-                        <span className="font-mono font-bold text-gray-800 text-lg">${amount.toLocaleString()}</span>
+                        
+                        {/* 若該銀行有產生回饋，顯示在對帳金額下方 */}
+                        {rewards && (rewards.cashback > 0 || Object.keys(rewards.points).length > 0) && (
+                          <div className="flex flex-wrap items-center gap-2 pt-2 mt-2 border-t border-gray-200/60">
+                            <span className="text-[11px] font-bold text-yellow-600 flex items-center gap-1"><Gift size={12} />本期預估賺取:</span>
+                            {rewards.cashback > 0 && (
+                              <span className="text-[11px] font-bold text-emerald-600 bg-emerald-100/50 px-1.5 py-0.5 rounded shadow-sm">
+                                ${Math.round(rewards.cashback)} 現金回饋
+                              </span>
+                            )}
+                            {Object.entries(rewards.points).map(([unit, pts]) => (
+                              <span key={unit} className="text-[11px] font-bold text-indigo-600 bg-indigo-100/50 px-1.5 py-0.5 rounded shadow-sm">
+                                {pts} {unit}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )
                   })}
@@ -1135,7 +1258,7 @@ export default function App() {
             <div className="space-y-6 pt-4">
               <div className="flex justify-between items-center px-2">
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
-                <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.0.2</span>
+                <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.0.6</span>
               </div>
 
               {/* === 帳號與雲端同步區塊 === */}
@@ -1151,16 +1274,47 @@ export default function App() {
                      <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs mt-1">
                        <p className="text-gray-700 font-bold mb-1 flex items-center gap-1"><Zap size={14} className="text-yellow-500" /> 自動化備份至 Google Sheets (Webhook)</p>
                        <p className="text-[10px] text-gray-500 mb-2 leading-relaxed">請將 Make.com 或 Zapier 的 Webhook 網址貼在下方，新增支出時將會自動拋送資料給系統。</p>
-                       <input 
-                         type="url" 
-                         placeholder="https://hook.us1.make.com/..." 
-                         value={webhookUrl}
-                         onChange={(e) => {
-                           setWebhookUrl(e.target.value);
-                           setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'userConfig'), { webhookUrl: e.target.value }, { merge: true });
-                         }}
-                         className="w-full border border-gray-300 rounded px-2 py-2 text-sm outline-none focus:border-emerald-500 focus:bg-white transition bg-gray-50"
-                       />
+                       <p className="text-[10px] text-emerald-600 mb-2 font-bold">💡 測試前，請先在 Make.com 點擊左下角的「Run once (執行一次)」進入監聽狀態。</p>
+                       <div className="flex gap-2">
+                         <input 
+                           type="url" 
+                           placeholder="https://hook.us1.make.com/..." 
+                           value={webhookUrl}
+                           onChange={(e) => {
+                             setWebhookUrl(e.target.value);
+                             setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'userConfig'), { webhookUrl: e.target.value }, { merge: true });
+                           }}
+                           className="w-full border border-gray-300 rounded px-2 py-2 text-sm outline-none focus:border-emerald-500 focus:bg-white transition bg-gray-50"
+                         />
+                         <button 
+                           disabled={isTestingWebhook}
+                           onClick={async () => {
+                             if (!webhookUrl || !webhookUrl.trim().startsWith('http')) return alert("請先輸入有效的 Webhook 網址 (需包含 https://)");
+                             setIsTestingWebhook(true);
+                             try {
+                               const res = await fetch(webhookUrl.trim(), { 
+                                 method: 'POST', 
+                                 headers: {'Content-Type': 'application/json'}, 
+                                 body: JSON.stringify({ 
+                                   date: new Date().toISOString().slice(0, 10), 
+                                   amount: 100, 
+                                   description: "Webhook 測試成功！", 
+                                   category: "測試", 
+                                   bank: "測試銀行", 
+                                   card: "測試卡片",
+                                   rewardDetails: "國內基本 1%、滿額送 10點" // 測試用回饋字串
+                                 }) 
+                               });
+                               if (res.ok) alert("🚀 測試發送成功！請回 Make.com 查看是否有收到資料。");
+                               else alert("發送失敗，狀態碼: " + res.status + "\n請確認網址正確，且 Make.com 正在「監聽」中。");
+                             } catch (e) { alert("網路發送錯誤！請確認網址是否正確。\n錯誤訊息: " + e.message); }
+                             finally { setIsTestingWebhook(false); }
+                           }} 
+                           className="bg-emerald-100 text-emerald-700 px-3 rounded text-xs font-bold hover:bg-emerald-200 whitespace-nowrap transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                         >
+                           {isTestingWebhook ? '發送中...' : '測試發送'}
+                         </button>
+                       </div>
                      </div>
 
                      <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 px-3 py-3 rounded-xl text-sm font-bold transition border border-red-200 mt-2">
