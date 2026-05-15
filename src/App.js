@@ -193,7 +193,6 @@ const GlobalStyles = () => (
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
   `}} />
 );
 
@@ -1007,7 +1006,7 @@ export default function App() {
           </header>
         )}
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 custom-scrollbar pb-32">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 custom-scrollbar pb-[calc(5rem+env(safe-area-inset-bottom))]">
           
           {/* == 明細頁 == */}
           {activeTab === 'list' && (
@@ -1255,10 +1254,10 @@ export default function App() {
 
           {/* == 設定頁 == */}
           {activeTab === 'settings' && (
-            <div className="space-y-6 pt-4">
+            <div className="space-y-6 pt-[max(2rem,calc(1rem+env(safe-area-inset-top)))] px-2">
               <div className="flex justify-between items-center px-2">
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
-                <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.0.6</span>
+                <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.0.7</span>
               </div>
 
               {/* === 帳號與雲端同步區塊 === */}
@@ -1628,7 +1627,7 @@ export default function App() {
         {/* ========================================== */}
         <button
           onClick={() => openExpenseModal()}
-          className="absolute bottom-[calc(5rem+env(safe-area-inset-bottom))] right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-400 hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all z-30"
+          className="absolute bottom-[calc(6rem+env(safe-area-inset-bottom))] right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-400 hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all z-30"
         >
           <Plus size={30} />
         </button>
@@ -1636,7 +1635,7 @@ export default function App() {
         {/* ========================================== */}
         {/* 底部導覽列 - 三顆按鈕完美平均分配 */}
         {/* ========================================== */}
-        <div className="mt-auto w-full bg-white border-t border-gray-200 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] grid grid-cols-3 place-items-center z-20 shrink-0">
+        <div className="mt-auto w-full bg-white border-t border-gray-200 px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] grid grid-cols-3 place-items-center z-20 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
           <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'list' ? 'text-emerald-600' : 'text-gray-400'}`}>
             <List size={24} /><span className="text-xs font-bold">明細</span>
           </button>
