@@ -1264,7 +1264,7 @@ export default function App() {
             <div className="space-y-6 pt-[max(2rem,calc(1rem+env(safe-area-inset-top)))] px-2">
               <div className="flex justify-between items-center px-2">
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
-                <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.0.8 (防跑版)</span>
+                <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.0.8</span>
               </div>
 
               {/* === 帳號與雲端同步區塊 === */}
@@ -1664,42 +1664,42 @@ export default function App() {
               </div>
 
               <form onSubmit={handleSaveExpense} className="space-y-4">
-                <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 min-w-0">
+                <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
                   <label className="text-emerald-700 text-sm font-semibold mb-1 block">金額 (NT$)</label>
-                  <input type="number" name="amount" value={formData.amount ?? ''} onChange={handleFormChange} placeholder="0" required className="w-full bg-transparent text-4xl font-bold text-emerald-800 placeholder-emerald-300 outline-none font-mono min-w-0"/>
+                  <input type="number" name="amount" value={formData.amount ?? ''} onChange={handleFormChange} placeholder="0" required className="w-full bg-transparent text-4xl font-bold text-emerald-800 placeholder-emerald-300 outline-none font-mono"/>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="min-w-0">
-                    <label className="text-gray-600 text-sm font-medium mb-1 block truncate">日期</label>
-                    <input type="date" name="date" value={formData.date ?? ''} onChange={handleFormChange} required className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 min-w-0"/>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-gray-600 text-sm font-medium mb-1 block">日期</label>
+                    <input type="date" name="date" value={formData.date ?? ''} onChange={handleFormChange} required className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500"/>
                   </div>
-                  <div className="min-w-0">
-                    <label className="text-gray-600 text-sm font-medium mb-1 block truncate">分類</label>
-                    <select name="category" value={formData.category ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white min-w-0">
-                      {categories.map(cat => <option key={cat.id} value={cat.name} className="truncate">{cat.name}</option>)}
+                  <div>
+                    <label className="text-gray-600 text-sm font-medium mb-1 block">分類</label>
+                    <select name="category" value={formData.category ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white">
+                      {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
                     </select>
                   </div>
                 </div>
 
-                <div className="min-w-0">
-                  <label className="text-gray-600 text-sm font-medium mb-1 block truncate">項目說明</label>
-                  <input type="text" name="description" value={formData.description ?? ''} onChange={handleFormChange} placeholder="例如：午餐、搭捷運" required className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 min-w-0"/>
+                <div>
+                  <label className="text-gray-600 text-sm font-medium mb-1 block">項目說明</label>
+                  <input type="text" name="description" value={formData.description ?? ''} onChange={handleFormChange} placeholder="例如：午餐、搭捷運" required className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500"/>
                 </div>
 
                 <hr className="border-gray-200" />
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="min-w-0">
-                    <label className="text-gray-600 text-sm font-medium mb-1 block truncate">銀行/支付</label>
-                    <select name="bank" value={formData.bank ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white min-w-0">
-                      {sortedBankNames.map(bank => <option key={bank} value={bank} className="truncate">{bank}</option>)}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-gray-600 text-sm font-medium mb-1 block">銀行/支付</label>
+                    <select name="bank" value={formData.bank ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white">
+                      {sortedBankNames.map(bank => <option key={bank} value={bank}>{bank}</option>)}
                     </select>
                   </div>
-                  <div className="min-w-0">
-                    <label className="text-gray-600 text-sm font-medium mb-1 block truncate">卡別</label>
-                    <select name="card" value={formData.card ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white min-w-0">
-                      {bankCards[formData.bank]?.map(card => <option key={card.name} value={card.name} className="truncate">{card.name}</option>)}
+                  <div>
+                    <label className="text-gray-600 text-sm font-medium mb-1 block">卡別</label>
+                    <select name="card" value={formData.card ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white">
+                      {bankCards[formData.bank]?.map(card => <option key={card.name} value={card.name}>{card.name}</option>)}
                     </select>
                   </div>
                 </div>
