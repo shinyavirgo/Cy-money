@@ -1039,11 +1039,11 @@ export default function App() {
       <div className="w-full max-w-md bg-gray-50 relative flex flex-col h-full shadow-2xl overflow-hidden">
         
         {/* ========================================== */}
-        {/* [固定] 頂部標題 Header (不再隨頁面滑動) */}
+        {/* [固定] 頂部標題 Header (縮緊並貼齊動態島) */}
         {/* ========================================== */}
         {activeTab !== 'settings' ? (
-          <header className="bg-emerald-600 text-white pt-[calc(1.25rem+env(safe-area-inset-top))] pb-5 px-6 rounded-b-[2rem] shadow-md z-10 shrink-0">
-            <div className="flex items-center justify-between bg-emerald-700/50 rounded-2xl p-1 mb-6 mt-2">
+          <header className="bg-emerald-600 text-white pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 px-6 rounded-b-[2rem] shadow-md z-10 shrink-0">
+            <div className="flex items-center justify-between bg-emerald-700/50 rounded-2xl p-1 mb-4 mt-1">
               <button onClick={() => { const [y, m] = currentMonth.split('-').map(Number); setCurrentMonth(`${new Date(y, m - 2, 1).getFullYear()}-${String(new Date(y, m - 2, 1).getMonth() + 1).padStart(2, '0')}`); }} className="p-2 hover:bg-emerald-800 rounded-xl transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
               <div 
                 className="font-semibold text-lg flex items-center gap-2 cursor-pointer hover:text-emerald-200 transition"
@@ -1055,23 +1055,23 @@ export default function App() {
               <button onClick={() => { const [y, m] = currentMonth.split('-').map(Number); setCurrentMonth(`${new Date(y, m, 1).getFullYear()}-${String(new Date(y, m, 1).getMonth() + 1).padStart(2, '0')}`); }} className="p-2 hover:bg-emerald-800 rounded-xl transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg></button>
             </div>
             <div className="text-center">
-              <p className="text-emerald-100 text-sm mb-1">本月總支出</p>
+              <p className="text-emerald-100 text-sm mb-0.5">本月總支出</p>
               <p className="text-4xl font-bold font-mono"><span className="text-xl mr-1">$</span>{totalMonth.toLocaleString()}</p>
             </div>
           </header>
         ) : (
-          <header className="bg-gray-50 pt-[calc(1.25rem+env(safe-area-inset-top))] pb-4 px-6 z-10 shrink-0 border-b border-gray-200 shadow-sm">
+          <header className="bg-gray-50 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 px-6 z-10 shrink-0 border-b border-gray-200 shadow-sm">
             <div className="flex justify-between items-center px-2">
               <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
-              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.1.0 (全固定佈局)</span>
+              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.1.1 (極致視野)</span>
             </div>
           </header>
         )}
 
         {/* ========================================== */}
-        {/* [獨立滑動] 中間內容區塊 Main */}
+        {/* [獨立滑動] 中間內容區塊 Main (移除隱形多餘空白) */}
         {/* ========================================== */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 custom-scrollbar pb-28 relative z-0">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 custom-scrollbar pb-6 relative z-0">
           
           {/* == 明細頁 == */}
           {activeTab === 'list' && (
@@ -1696,7 +1696,7 @@ export default function App() {
         {/* ========================================== */}
         {/* 底部導覽列 - 完美貼齊 Home 指示條並壓縮白邊 */}
         {/* ========================================== */}
-        <div className="mt-auto w-full bg-white border-t border-gray-200 px-6 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] flex justify-between items-center z-20 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <div className="mt-auto w-full bg-white border-t border-gray-200 px-6 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex justify-between items-center z-20 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
           <button onClick={() => setActiveTab('list')} className={`flex-1 flex flex-col items-center gap-1 transition ${activeTab === 'list' ? 'text-emerald-600' : 'text-gray-400'}`}>
             <List size={24} /><span className="text-xs font-bold">明細</span>
           </button>
