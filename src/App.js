@@ -1642,7 +1642,7 @@ export default function App() {
         {/* ========================================== */}
         {/* 底部導覽列 - 完美貼齊 Home 指示條並壓縮白邊 */}
         {/* ========================================== */}
-        <div className="mt-auto w-full bg-white border-t border-gray-200 px-6 pt-2 pb-[max(0.15rem,env(safe-area-inset-bottom))] grid grid-cols-3 place-items-center z-20 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <div className="mt-auto w-full bg-white border-t border-gray-200 px-6 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] grid grid-cols-3 place-items-center z-20 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
           <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'list' ? 'text-emerald-600' : 'text-gray-400'}`}>
             <List size={24} /><span className="text-xs font-bold">明細</span>
           </button>
