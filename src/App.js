@@ -169,18 +169,17 @@ const getBillingCycleDates = (viewYear, viewMonthNum, billingDayStr) => {
   return { startStr: formatDate(startDate), endStr: formatDate(endDate), cycleLabel: `${startDate.getMonth()+1}/${startDate.getDate()} ~ ${endDate.getMonth()+1}/${endDate.getDate()}` };
 };
 
-// 強制解除 iOS PWA 輸入框封印與防左右滾動
+// 🛑 核心防下拉、鎖死背景與 iOS Safari 防跑位樣式
 const GlobalStyles = () => (
   <style dangerouslySetInnerHTML={{__html: `
-    body, html, #root {
+    html, body, #root {
       margin: 0;
       padding: 0;
       width: 100%;
       height: 100%;
-      /* 背景色現在交由 JS 動態控制，以完美融合動態島 */
+      overflow: hidden; /* 強制關閉整個網頁的滾動 */
+      overscroll-behavior-y: none; /* 關閉 iOS 彈簧回彈效果 */
       -webkit-tap-highlight-color: transparent;
-      -webkit-overflow-scrolling: touch;
-      overflow-x: hidden;
     }
     input, textarea, select {
       font-size: 16px !important; /* 防自動放大 */
@@ -193,7 +192,6 @@ const GlobalStyles = () => (
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
   `}} />
 );
 
@@ -960,20 +958,22 @@ export default function App() {
     reader.readAsText(file);
   };
 
+  // 全固定外觀：Loading
   if (isLoading && !user) {
     return (
-      <div className="w-full min-h-[100dvh] flex items-center justify-center bg-gray-50 text-emerald-600 relative">
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-50 text-emerald-600">
         <GlobalStyles />
         <Loader2 className="animate-spin mr-2" size={20} /> 載入中...
       </div>
     );
   }
 
+  // 全固定外觀：Login
   if (!user) {
     return (
-      <div className="w-full min-h-[100dvh] bg-gray-200 flex justify-center items-center font-sans p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))]">
+      <div className="fixed inset-0 bg-gray-200 flex justify-center items-center font-sans p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))]">
         <GlobalStyles />
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 space-y-6">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 space-y-6 overflow-y-auto max-h-full">
           <div className="text-center">
             <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <Wallet size={32} />
@@ -1022,9 +1022,10 @@ export default function App() {
     );
   }
 
+  // 全固定外觀：Settings Loading
   if (isLoading || !settingsLoaded) {
     return (
-      <div className="w-full h-[100dvh] flex items-center justify-center bg-gray-50 text-emerald-600 relative overflow-x-hidden">
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-50 text-emerald-600 relative overflow-hidden">
         <GlobalStyles />
         <Loader2 className="animate-spin mr-2" size={20} /> 讀取資料中...
       </div>
@@ -1032,12 +1033,15 @@ export default function App() {
   }
 
   return (
-    <div className="w-full h-[100dvh] bg-gray-200 flex justify-center font-sans overflow-hidden">
+    <div className="fixed inset-0 bg-gray-200 flex justify-center font-sans overflow-hidden">
       <GlobalStyles />
+      {/* 最大容器，採用 Flex Column 排列： Header -> Main(Scroll) -> Footer */}
       <div className="w-full max-w-md bg-gray-50 relative flex flex-col h-full shadow-2xl overflow-hidden">
         
-        {/* Header */}
-        {activeTab !== 'settings' && (
+        {/* ========================================== */}
+        {/* [固定] 頂部標題 Header (不再隨頁面滑動) */}
+        {/* ========================================== */}
+        {activeTab !== 'settings' ? (
           <header className="bg-emerald-600 text-white pt-[calc(1.25rem+env(safe-area-inset-top))] pb-5 px-6 rounded-b-[2rem] shadow-md z-10 shrink-0">
             <div className="flex items-center justify-between bg-emerald-700/50 rounded-2xl p-1 mb-6 mt-2">
               <button onClick={() => { const [y, m] = currentMonth.split('-').map(Number); setCurrentMonth(`${new Date(y, m - 2, 1).getFullYear()}-${String(new Date(y, m - 2, 1).getMonth() + 1).padStart(2, '0')}`); }} className="p-2 hover:bg-emerald-800 rounded-xl transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
@@ -1055,9 +1059,19 @@ export default function App() {
               <p className="text-4xl font-bold font-mono"><span className="text-xl mr-1">$</span>{totalMonth.toLocaleString()}</p>
             </div>
           </header>
+        ) : (
+          <header className="bg-gray-50 pt-[calc(1.25rem+env(safe-area-inset-top))] pb-4 px-6 z-10 shrink-0 border-b border-gray-200 shadow-sm">
+            <div className="flex justify-between items-center px-2">
+              <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
+              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.1.0 (全固定佈局)</span>
+            </div>
+          </header>
         )}
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 custom-scrollbar pb-[calc(5rem+env(safe-area-inset-bottom))]">
+        {/* ========================================== */}
+        {/* [獨立滑動] 中間內容區塊 Main */}
+        {/* ========================================== */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 custom-scrollbar pb-28 relative z-0">
           
           {/* == 明細頁 == */}
           {activeTab === 'list' && (
@@ -1176,8 +1190,8 @@ export default function App() {
                         <div key={card.name} className="flex flex-col gap-3 border-b border-gray-100 pb-5 last:border-0 last:pb-0">
                           <div className="flex items-start gap-3">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 ${cColor}`}><CardIcon size={14}/></div>
-                            <div className="flex-1 space-y-2">
-                              <span className="font-bold text-gray-800 text-sm block">
+                            <div className="flex-1 space-y-2 min-w-0">
+                              <span className="font-bold text-gray-800 text-sm block truncate">
                                 {card.name}
                                 {card.billing && card.billing !== '無' && <span className="text-[10px] text-gray-400 ml-2 font-normal">結帳日: {card.billing}</span>}
                               </span>
@@ -1204,13 +1218,13 @@ export default function App() {
                                     const isMaxedOut = track.spent >= track.limit;
                                     return (
                                       <div key={idx} className="bg-orange-50/60 rounded-xl p-3 border border-orange-100/50">
-                                        <div className="flex justify-between items-end mb-1.5">
-                                          <div>
-                                            <span className="font-bold text-orange-800 block text-[11px]">🎁 {track.ruleName}</span>
-                                            <span className="text-[9px] text-orange-500/80">{track.cycleLabel}</span>
+                                        <div className="flex justify-between items-end mb-1.5 gap-1">
+                                          <div className="min-w-0">
+                                            <span className="font-bold text-orange-800 block text-[11px] truncate">🎁 {track.ruleName}</span>
+                                            <span className="text-[9px] text-orange-500/80 truncate block">{track.cycleLabel}</span>
                                           </div>
-                                          <span className={`font-mono text-xs ${isMaxedOut ? 'text-red-500 font-bold' : 'text-orange-600 font-bold'}`}>
-                                            可刷剩餘 ${remaining.toLocaleString()} <span className="text-orange-400/70 font-normal text-[10px]">/ {track.limit.toLocaleString()}</span>
+                                          <span className={`font-mono text-xs shrink-0 ${isMaxedOut ? 'text-red-500 font-bold' : 'text-orange-600 font-bold'}`}>
+                                            剩餘 ${remaining.toLocaleString()} <span className="text-orange-400/70 font-normal text-[10px]">/ {track.limit.toLocaleString()}</span>
                                           </span>
                                         </div>
                                         <div className="w-full bg-orange-200/50 rounded-full h-1.5 relative overflow-hidden">
@@ -1305,12 +1319,8 @@ export default function App() {
 
           {/* == 設定頁 == */}
           {activeTab === 'settings' && (
-            <div className="space-y-6 pt-[calc(1.5rem+env(safe-area-inset-top))] px-2">
-              <div className="flex justify-between items-center px-2">
-                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
-                <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.0.9 (動態島優化)</span>
-              </div>
-
+            <div className="space-y-6 pt-2 px-2">
+              
               {/* === 帳號與雲端同步區塊 === */}
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                 <h3 className="text-gray-700 font-bold flex items-center gap-2 mb-4"><UserCircle size={18} className="text-indigo-500" />帳號與雲端同步</h3>
@@ -1678,7 +1688,7 @@ export default function App() {
         {/* ========================================== */}
         <button
           onClick={() => openExpenseModal()}
-          className="absolute bottom-[calc(4rem+env(safe-area-inset-bottom))] right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-400 hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all z-30"
+          className="absolute bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-400 hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all z-30"
         >
           <Plus size={30} />
         </button>
