@@ -970,7 +970,7 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="w-full min-h-[100dvh] bg-gray-200 flex justify-center items-center font-sans p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="w-full min-h-[100dvh] bg-gray-200 flex justify-center items-center font-sans p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))]">
         <GlobalStyles />
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 space-y-6">
           <div className="text-center">
@@ -1037,7 +1037,7 @@ export default function App() {
         
         {/* Header */}
         {activeTab !== 'settings' && (
-          <header className="bg-emerald-600 text-white pt-[max(1.5rem,env(safe-area-inset-top))] pb-4 px-6 rounded-b-3xl shadow-md z-10 shrink-0">
+          <header className="bg-emerald-600 text-white pt-[calc(1.25rem+env(safe-area-inset-top))] pb-5 px-6 rounded-b-[2rem] shadow-md z-10 shrink-0">
             <div className="flex items-center justify-between bg-emerald-700/50 rounded-2xl p-1 mb-6 mt-2">
               <button onClick={() => { const [y, m] = currentMonth.split('-').map(Number); setCurrentMonth(`${new Date(y, m - 2, 1).getFullYear()}-${String(new Date(y, m - 2, 1).getMonth() + 1).padStart(2, '0')}`); }} className="p-2 hover:bg-emerald-800 rounded-xl transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
               <div 
@@ -1304,10 +1304,10 @@ export default function App() {
 
           {/* == 設定頁 == */}
           {activeTab === 'settings' && (
-            <div className="space-y-6 pt-[max(2rem,calc(1rem+env(safe-area-inset-top)))] px-2">
+            <div className="space-y-6 pt-[calc(1.5rem+env(safe-area-inset-top))] px-2">
               <div className="flex justify-between items-center px-2">
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
-                <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.0.8 (iOS優化)</span>
+                <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.0.9 (動態島優化)</span>
               </div>
 
               {/* === 帳號與雲端同步區塊 === */}
@@ -1626,7 +1626,7 @@ export default function App() {
         {/* ========================================== */}
         {pickerConfig && (
           <div className="fixed inset-0 bg-black/70 z-[60] flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity">
-            <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl">
+            <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Palette size={20} className="text-emerald-600"/> 自訂外觀</h3>
                 <button onClick={() => setPickerConfig(null)} className="p-1 text-gray-400 hover:bg-gray-100 rounded-full"><X size={20}/></button>
@@ -1685,7 +1685,7 @@ export default function App() {
         {/* ========================================== */}
         {/* 底部導覽列 - 完美貼齊 Home 指示條並壓縮白邊 */}
         {/* ========================================== */}
-        <div className="mt-auto w-full bg-white border-t border-gray-200 px-6 pt-2 pb-[max(0.25rem,env(safe-area-inset-bottom))] flex justify-between items-center z-20 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <div className="mt-auto w-full bg-white border-t border-gray-200 px-6 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] flex justify-between items-center z-20 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
           <button onClick={() => setActiveTab('list')} className={`flex-1 flex flex-col items-center gap-1 transition ${activeTab === 'list' ? 'text-emerald-600' : 'text-gray-400'}`}>
             <List size={24} /><span className="text-xs font-bold">明細</span>
           </button>
