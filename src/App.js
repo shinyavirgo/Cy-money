@@ -191,11 +191,6 @@ const GlobalStyles = () => (
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-
-    /* 🚀 關鍵修復：用純 CSS 處理動態島與底部安全區，防止 React 行內樣式失效 */
-    .pt-safe { padding-top: max(0.5rem, env(safe-area-inset-top)); }
-    .pb-safe { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
-    .bottom-fab { bottom: calc(4.5rem + max(0.5rem, env(safe-area-inset-bottom))); }
   `}} />
 );
 
@@ -244,7 +239,7 @@ export default function App() {
   const [showUnusedCards, setShowUnusedCards] = useState(false);
 
   // ==========================================
-  // 🚀 Meta Tags 優化
+  // 🚀 Meta Tags 優化 (保證全螢幕洗白，防漏底)
   // ==========================================
   useEffect(() => {
     try {
@@ -277,8 +272,10 @@ export default function App() {
         document.head.appendChild(appleStatusBar);
       }
 
-      // 確保底層背景不會露出突兀顏色
-      document.body.style.backgroundColor = '#e5e7eb';
+      // 💡 關鍵修復：強制將 HTML 與 BODY 背景設為純白
+      // 這樣手機螢幕最底部的安全區就絕對只會是白色，與導覽列完美融合
+      document.documentElement.style.backgroundColor = '#ffffff';
+      document.body.style.backgroundColor = '#ffffff';
     } catch (e) {
       console.warn("無法調整 Meta Tags", e);
     }
@@ -762,7 +759,7 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="fixed inset-0 bg-gray-200 flex justify-center items-center font-sans p-4 pt-safe pb-safe">
+      <div className="fixed inset-0 bg-white md:bg-gray-200 flex justify-center items-center font-sans p-4" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
         <GlobalStyles />
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 space-y-6 overflow-y-auto max-h-full">
           <div className="text-center">
@@ -793,7 +790,8 @@ export default function App() {
   if (isLoading || !settingsLoaded) return <div className="fixed inset-0 flex items-center justify-center bg-gray-50 text-emerald-600 relative overflow-hidden"><GlobalStyles /><Loader2 className="animate-spin mr-2" size={20} /> 讀取資料中...</div>;
 
   return (
-    <div className="fixed inset-0 bg-gray-200 flex justify-center font-sans overflow-hidden">
+    // 💡 關鍵修復：手機版最底層改用 bg-white 避免任何灰色漏底，電腦版則維持 md:bg-gray-200
+    <div className="fixed inset-0 bg-white md:bg-gray-200 flex justify-center font-sans overflow-hidden">
       <GlobalStyles />
       
       {/* 最大容器：Header -> Main(Scroll) -> Footer */}
@@ -801,7 +799,10 @@ export default function App() {
         
         {/* [固定] 頂部標題 Header */}
         {activeTab !== 'settings' ? (
-          <header className="bg-emerald-600 text-white pt-safe pb-3 px-5 rounded-b-[2rem] shadow-md z-10 shrink-0">
+          <header 
+            className="bg-emerald-600 text-white pb-3 px-5 rounded-b-[2rem] shadow-md z-10 shrink-0"
+            style={{ paddingTop: 'calc(0.25rem + env(safe-area-inset-top))' }}
+          >
             <div className="flex items-center justify-between bg-emerald-700/50 rounded-2xl p-1 mb-3 mt-1">
               <button onClick={() => { const [y, m] = currentMonth.split('-').map(Number); setCurrentMonth(`${new Date(y, m - 2, 1).getFullYear()}-${String(new Date(y, m - 2, 1).getMonth() + 1).padStart(2, '0')}`); }} className="p-2 hover:bg-emerald-800 rounded-xl transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
               <div className="font-semibold text-lg flex items-center gap-2 cursor-pointer hover:text-emerald-200 transition" onClick={handleJumpToCurrentMonth}>
@@ -815,10 +816,13 @@ export default function App() {
             </div>
           </header>
         ) : (
-          <header className="bg-gray-50 pt-safe pb-3 px-6 z-10 shrink-0 border-b border-gray-200 shadow-sm">
+          <header 
+            className="bg-gray-50 pb-3 px-6 z-10 shrink-0 border-b border-gray-200 shadow-sm"
+            style={{ paddingTop: 'calc(0.25rem + env(safe-area-inset-top))' }}
+          >
             <div className="flex justify-between items-center px-2 mt-1">
               <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
-              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.1.3 (純白底部版)</span>
+              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.1.4 (純白完美貼齊)</span>
             </div>
           </header>
         )}
@@ -828,7 +832,7 @@ export default function App() {
           
           {/* == 明細頁 == */}
           {activeTab === 'list' && (
-            <div className="space-y-3 pb-4">
+            <div className="space-y-3 pb-24">
               {filteredExpenses.length === 0 ? (
                 <div className="text-center text-gray-400 mt-20 flex flex-col items-center">
                   <List size={48} className="mb-4 opacity-50" />
@@ -892,7 +896,7 @@ export default function App() {
 
           {/* == 報表頁 == */}
           {activeTab === 'report' && (
-            <div className="space-y-6 pb-4">
+            <div className="space-y-6 pb-24">
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                 <h3 className="text-gray-500 font-semibold mb-4 flex items-center gap-2"><AlertCircle size={18} />各卡額度與回饋狀態</h3>
                 <div className="space-y-5">
@@ -1033,7 +1037,7 @@ export default function App() {
 
           {/* == 設定頁 == */}
           {activeTab === 'settings' && (
-            <div className="space-y-6 pb-4">
+            <div className="space-y-6 pb-24 pt-2 px-2">
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                 <h3 className="text-gray-700 font-bold flex items-center gap-2 mb-4"><UserCircle size={18} className="text-indigo-500" />帳號與雲端同步</h3>
                 {user && !user.isAnonymous ? (
@@ -1213,7 +1217,7 @@ export default function App() {
         {/* 外觀選擇器 Modal */}
         {pickerConfig && (
           <div className="fixed inset-0 bg-black/70 z-[60] flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity">
-            <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 pb-safe shadow-2xl">
+            <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl" style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
               <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Palette size={20} className="text-emerald-600"/> 自訂外觀</h3><button onClick={() => setPickerConfig(null)} className="p-1 text-gray-400 hover:bg-gray-100 rounded-full"><X size={20}/></button></div>
               <div className="flex justify-center mb-6"><div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-md ${pickerConfig.color}`}>{React.createElement(ICON_MAP[pickerConfig.iconName] || MoreHorizontal, { size: 32 })}</div></div>
               <div className="space-y-4">
@@ -1226,10 +1230,19 @@ export default function App() {
         )}
 
         {/* 懸浮新增按鈕 (FAB) */}
-        <button onClick={() => openExpenseModal()} className="absolute right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-emerald-700 transition-all z-30 bottom-fab"><Plus size={30} /></button>
+        <button 
+          onClick={() => openExpenseModal()} 
+          className="absolute right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-emerald-700 transition-all z-30"
+          style={{ bottom: 'calc(4.5rem + max(0.5rem, env(safe-area-inset-bottom)))' }}
+        >
+          <Plus size={30} />
+        </button>
 
-        {/* 底部導覽列 (徹底消除綠底、純白貼齊 Home 橫條) */}
-        <div className="w-full bg-white border-t border-gray-200 z-20 shrink-0 pb-safe">
+        {/* 💡 底部導覽列 (純白貼齊 Home 橫條設計) */}
+        <div 
+          className="w-full bg-white border-t border-gray-200 z-20 shrink-0"
+          style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+        >
           <div className="flex justify-between items-center px-6 h-14">
             <button onClick={() => setActiveTab('list')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'list' ? 'text-emerald-600' : 'text-gray-400'}`}><List size={24} /><span className="text-[10px] font-bold">明細</span></button>
             <button onClick={() => setActiveTab('report')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'report' ? 'text-emerald-600' : 'text-gray-400'}`}><PieChart size={24} /><span className="text-[10px] font-bold">報表</span></button>
@@ -1240,7 +1253,10 @@ export default function App() {
         {/* 新增/編輯支出 Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity pointer-events-auto">
-            <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 pb-[calc(24px+env(safe-area-inset-bottom))] md:pb-6 shadow-2xl overflow-y-auto max-h-[90dvh]">
+            <div 
+              className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl overflow-y-auto max-h-[90dvh]"
+              style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+            >
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">{editingExpenseId ? '編輯明細' : '新增支出'}</h2>
                 <button onClick={() => setIsModalOpen(false)} className="p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200"><X size={20} /></button>
