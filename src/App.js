@@ -151,7 +151,7 @@ try {
 }
 
 // ==========================================
-// 輔助函式與全域防呆樣式 (徹底解決 iOS Safari 變形問題)
+// 輔助函式與全域防呆樣式
 // ==========================================
 const extractBillingDay = (billingStr) => {
   if (!billingStr || billingStr === '無') return 999;
@@ -272,8 +272,6 @@ export default function App() {
         document.head.appendChild(appleStatusBar);
       }
 
-      // 💡 關鍵修復：強制將 HTML 與 BODY 背景設為純白
-      // 這樣手機螢幕最底部的安全區就絕對只會是白色，與導覽列完美融合
       document.documentElement.style.backgroundColor = '#ffffff';
       document.body.style.backgroundColor = '#ffffff';
     } catch (e) {
@@ -790,7 +788,6 @@ export default function App() {
   if (isLoading || !settingsLoaded) return <div className="fixed inset-0 flex items-center justify-center bg-gray-50 text-emerald-600 relative overflow-hidden"><GlobalStyles /><Loader2 className="animate-spin mr-2" size={20} /> 讀取資料中...</div>;
 
   return (
-    // 💡 關鍵修復：手機版最底層改用 bg-white 避免任何灰色漏底，電腦版則維持 md:bg-gray-200
     <div className="fixed inset-0 bg-white md:bg-gray-200 flex justify-center font-sans overflow-hidden">
       <GlobalStyles />
       
@@ -822,17 +819,17 @@ export default function App() {
           >
             <div className="flex justify-between items-center px-2 mt-1">
               <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
-              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.1.4 (純白完美貼齊)</span>
+              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.1.5 (圖示精準包覆)</span>
             </div>
           </header>
         )}
 
         {/* [獨立滑動] 中間內容區塊 */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 custom-scrollbar z-0 relative">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 custom-scrollbar z-0 relative pb-24">
           
           {/* == 明細頁 == */}
           {activeTab === 'list' && (
-            <div className="space-y-3 pb-24">
+            <div className="space-y-3">
               {filteredExpenses.length === 0 ? (
                 <div className="text-center text-gray-400 mt-20 flex flex-col items-center">
                   <List size={48} className="mb-4 opacity-50" />
@@ -896,7 +893,7 @@ export default function App() {
 
           {/* == 報表頁 == */}
           {activeTab === 'report' && (
-            <div className="space-y-6 pb-24">
+            <div className="space-y-6">
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                 <h3 className="text-gray-500 font-semibold mb-4 flex items-center gap-2"><AlertCircle size={18} />各卡額度與回饋狀態</h3>
                 <div className="space-y-5">
@@ -1037,7 +1034,7 @@ export default function App() {
 
           {/* == 設定頁 == */}
           {activeTab === 'settings' && (
-            <div className="space-y-6 pb-24 pt-2 px-2">
+            <div className="space-y-6 pt-2 px-2">
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                 <h3 className="text-gray-700 font-bold flex items-center gap-2 mb-4"><UserCircle size={18} className="text-indigo-500" />帳號與雲端同步</h3>
                 {user && !user.isAnonymous ? (
@@ -1233,21 +1230,28 @@ export default function App() {
         <button 
           onClick={() => openExpenseModal()} 
           className="absolute right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-emerald-700 transition-all z-30"
-          style={{ bottom: 'calc(4.5rem + max(0.5rem, env(safe-area-inset-bottom)))' }}
+          style={{ bottom: 'calc(4rem + max(0px, env(safe-area-inset-bottom)))' }}
         >
           <Plus size={30} />
         </button>
 
-        {/* 💡 底部導覽列 (純白貼齊 Home 橫條設計) */}
+        {/* 💡 底部導覽列 (純白貼齊 Home 橫條設計，縮小空白) */}
         <div 
-          className="w-full bg-white border-t border-gray-200 z-20 shrink-0"
+          className="w-full bg-white border-t border-gray-200 z-20 shrink-0 flex justify-between items-center px-6 pt-2"
           style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
         >
-          <div className="flex justify-between items-center px-6 h-14">
-            <button onClick={() => setActiveTab('list')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'list' ? 'text-emerald-600' : 'text-gray-400'}`}><List size={24} /><span className="text-[10px] font-bold">明細</span></button>
-            <button onClick={() => setActiveTab('report')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'report' ? 'text-emerald-600' : 'text-gray-400'}`}><PieChart size={24} /><span className="text-[10px] font-bold">報表</span></button>
-            <button onClick={() => setActiveTab('settings')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'settings' ? 'text-emerald-600' : 'text-gray-400'}`}><Settings size={24} /><span className="text-[10px] font-bold">設定</span></button>
-          </div>
+          <button onClick={() => setActiveTab('list')} className={`flex-1 flex flex-col items-center gap-1 transition ${activeTab === 'list' ? 'text-emerald-600' : 'text-gray-400'}`}>
+            <List size={24} />
+            <span className="text-[10px] font-bold">明細</span>
+          </button>
+          <button onClick={() => setActiveTab('report')} className={`flex-1 flex flex-col items-center gap-1 transition ${activeTab === 'report' ? 'text-emerald-600' : 'text-gray-400'}`}>
+            <PieChart size={24} />
+            <span className="text-[10px] font-bold">報表</span>
+          </button>
+          <button onClick={() => setActiveTab('settings')} className={`flex-1 flex flex-col items-center gap-1 transition ${activeTab === 'settings' ? 'text-emerald-600' : 'text-gray-400'}`}>
+            <Settings size={24} />
+            <span className="text-[10px] font-bold">設定</span>
+          </button>
         </div>
 
         {/* 新增/編輯支出 Modal */}
