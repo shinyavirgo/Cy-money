@@ -11,92 +11,19 @@ import {
 } from 'lucide-react';
 
 // ==========================================
-// 1. 系統最新預設值 (支出分類與信用卡設定)
+// 1. 系統預設值
 // ==========================================
 const DEFAULT_BANK_CARDS = {
   '現金': [{ name: '現金', billing: '無', limit: null, rewardCycle: 'calendar', rewards: [], iconName: 'Banknote', color: 'bg-green-100 text-green-600' }],
-  '聯邦': [{ name: '賴點卡', billing: '每月9日', limit: null, rewardCycle: 'calendar', rewards: [
-    { id: 'r1', name: '國內', type: 'cashback', rate: 1, limit: null },
-    { id: 'r2', name: '國外', type: 'cashback', rate: 3, limit: null },
-{ id: 'r3', name: 'ＬＰ偶數加碼', type: 'cashback', rate: 8.8, limit: 3000 }
-  ], iconName: 'CreditCard', color: 'bg-emerald-100 text-emerald-600' }], 
-  '星展': [
-    { name: '傳說卡', billing: '每月9日', limit: null, rewardCycle: 'calendar', rewards: [
-{ id: 'r1', name: '國內', type: 'cashback', rate: 1.2, limit: null },
-    { id: 'r2', name: '國外', type: 'cashback', rate: 2.5, limit: null },
-{ id: 'r3', name: '加碼', type: 'cashback', rate: 5, limit: 11363 }
-], iconName: 'Star', color: 'bg-yellow-100 text-yellow-600' },
-    { name: '饗樂卡', billing: '每月9日', limit: null, rewardCycle: 'billing', rewards: [
-      { id: 'r1', name: '基本回饋', type: 'points', spend: 30, earn: 1, unit: '活利積分', limit: null },
-      { id: 'r2', name: '指定品牌加碼', type: 'points', spend: 30, earn: 2, unit: '活利積分', limit: null }
-    ], iconName: 'Gamepad2', color: 'bg-red-100 text-red-600' },
-    { name: '永續卡', billing: '每月9日', limit: null, rewardCycle: 'calendar', rewards: [
-{ id: 'r1', name: '國內外', type: 'cashback', rate: 1, limit: null },
-    { id: 'r2', name: '日韓泰新美歐', type: 'cashback', rate: 4, limit: 15000 }], iconName: 'Globe', color: 'bg-teal-100 text-teal-600' }
-  ],
-  '元大': [{ name: '鑽金卡', billing: '每月10日', limit: null, rewardCycle: 'calendar', rewards: [
- { id: 'r1', name: '國內', type: 'cashback', rate: 1.2, limit: null },
-    { id: 'r2', name: '國外', type: 'cashback', rate: 2.2, limit: null },], iconName: 'Award', color: 'bg-amber-100 text-amber-600' }],
-  '富邦': [
-    { name: '好市多', billing: '每月12日', limit: null, rewardCycle: 'calendar', rewards: [
-      { id: 'r1', name: '店內', type: 'cashback', rate: 2, limit: null },
-    { id: 'r2', name: '店外', type: 'cashback', rate: 1, limit: null },
-{ id: 'r3', name: '網購加油', type: 'cashback', rate: 3, limit: null }
-    ], iconName: 'ShoppingCart', color: 'bg-blue-100 text-blue-600' },
-    { name: '數位卡', billing: '每月12日', limit: null, rewardCycle: 'calendar', rewards: [
-{ id: 'r1', name: '一般、保費', type: 'cashback', rate: 0.5, limit: null },
-    { id: 'r2', name: '數位', type: 'cashback', rate: 1.5, limit: 20000 },], iconName: 'Monitor', color: 'bg-blue-100 text-blue-600' },
-    { name: 'J卡', billing: '每月12日', limit: null, rewardCycle: 'calendar', rewards: [
-      { id: 'r1', name: '國內外', type: 'cashback', rate: 1, limit: null },
-      { id: 'r2', name: '日韓泰', type: 'cashback', rate: 3, limit: null }
-    ], iconName: 'Plane', color: 'bg-blue-100 text-blue-600' }
-  ],
+  '聯邦': [{ name: '賴點卡', billing: '每月9日', limit: null, rewardCycle: 'calendar', rewards: [{ id: 'r1', name: '國內', type: 'cashback', rate: 1, limit: null }, { id: 'r2', name: '國外', type: 'cashback', rate: 3, limit: null }, { id: 'r3', name: 'ＬＰ偶數加碼', type: 'cashback', rate: 8.8, limit: 3000 }], iconName: 'CreditCard', color: 'bg-emerald-100 text-emerald-600' }], 
+  '星展': [{ name: '傳說卡', billing: '每月9日', limit: null, rewardCycle: 'calendar', rewards: [{ id: 'r1', name: '國內', type: 'cashback', rate: 1.2, limit: null }, { id: 'r2', name: '國外', type: 'cashback', rate: 2.5, limit: null }, { id: 'r3', name: '加碼', type: 'cashback', rate: 5, limit: 11363 }], iconName: 'Star', color: 'bg-yellow-100 text-yellow-600' }, { name: '饗樂卡', billing: '每月9日', limit: null, rewardCycle: 'billing', rewards: [{ id: 'r1', name: '基本回饋', type: 'points', spend: 30, earn: 1, unit: '活利積分', limit: null }, { id: 'r2', name: '指定品牌加碼', type: 'points', spend: 30, earn: 2, unit: '活利積分', limit: null }], iconName: 'Gamepad2', color: 'bg-red-100 text-red-600' }, { name: '永續卡', billing: '每月9日', limit: null, rewardCycle: 'calendar', rewards: [{ id: 'r1', name: '國內外', type: 'cashback', rate: 1, limit: null }, { id: 'r2', name: '日韓泰新美歐', type: 'cashback', rate: 4, limit: 15000 }], iconName: 'Globe', color: 'bg-teal-100 text-teal-600' }],
+  '元大': [{ name: '鑽金卡', billing: '每月10日', limit: null, rewardCycle: 'calendar', rewards: [{ id: 'r1', name: '國內', type: 'cashback', rate: 1.2, limit: null }, { id: 'r2', name: '國外', type: 'cashback', rate: 2.2, limit: null }], iconName: 'Award', color: 'bg-amber-100 text-amber-600' }],
+  '富邦': [{ name: '好市多', billing: '每月12日', limit: null, rewardCycle: 'calendar', rewards: [{ id: 'r1', name: '店內', type: 'cashback', rate: 2, limit: null }, { id: 'r2', name: '店外', type: 'cashback', rate: 1, limit: null }, { id: 'r3', name: '網購加油', type: 'cashback', rate: 3, limit: null }], iconName: 'ShoppingCart', color: 'bg-blue-100 text-blue-600' }, { name: '數位卡', billing: '每月12日', limit: null, rewardCycle: 'calendar', rewards: [{ id: 'r1', name: '一般、保費', type: 'cashback', rate: 0.5, limit: null }, { id: 'r2', name: '數位', type: 'cashback', rate: 1.5, limit: 20000 }], iconName: 'Monitor', color: 'bg-blue-100 text-blue-600' }, { name: 'J卡', billing: '每月12日', limit: null, rewardCycle: 'calendar', rewards: [{ id: 'r1', name: '國內外', type: 'cashback', rate: 1, limit: null }, { id: 'r2', name: '日韓泰', type: 'cashback', rate: 3, limit: null }], iconName: 'Plane', color: 'bg-blue-100 text-blue-600' }],
   '新光': [{ name: 'OU卡', billing: '每月12日', limit: null, rewardCycle: 'calendar', rewards: [], iconName: 'CreditCard', color: 'bg-rose-100 text-rose-600' }],
-  '永豐': [
-    { name: '運動卡', billing: '每月14日', limit: null, rewardCycle: 'calendar', rewards: [
-{ id: 'r1', name: '一般', type: 'cashback', rate: 1, limit: null },
-      { id: 'r2', name: '運動', type: 'cashback', rate: 1, limit: 5000 },
-{ id: 'r3', name: 'ＡＰ加碼', type: 'cashback', rate: 3, limit: 10000 }
-], iconName: 'Heart', color: 'bg-rose-100 text-rose-600' },
-    { name: '大戶卡', billing: '每月14日', limit: null, rewardCycle: 'billing', rewards: [
-      { id: 'r1', name: '國內', type: 'cashback', rate: 1, limit: null },
-      { id: 'r2', name: '國外', type: 'cashback', rate: 2, limit: null },
-      { id: 'r3', name: '大戶ＰＳ加碼', type: 'cashback', rate: 4, limit: 25000 }
-    ], iconName: 'Landmark', color: 'bg-gray-100 text-gray-800' },
-    { name: '大威卡', billing: '每月14日', limit: null, rewardCycle: 'billing', rewards: [
-{ id: 'r1', name: '國內', type: 'cashback', rate: 0.5, limit: null },
-      { id: 'r2', name: '國外', type: 'cashback', rate: 2.5, limit: null },
-      { id: 'r3', name: 'ＬＰ加碼', type: 'cashback', rate: 1.5, limit: 20000 }
-], iconName: 'CreditCard', color: 'bg-slate-100 text-slate-600' },
-    { name: '幣倍卡', billing: '每月14日', limit: null, rewardCycle: 'calendar', rewards: [
-{ id: 'r1', name: '國內', type: 'cashback', rate: 1, limit: null },
-      { id: 'r2', name: '國外', type: 'cashback', rate: 2, limit: null },
-      { id: 'r3', name: '指定', type: 'cashback', rate: 4, limit: 20000 }
-], iconName: 'Coins', color: 'bg-yellow-100 text-yellow-600' }
-  ],
-  '玉山': [
-    { name: 'UBEAR卡', billing: '每月21日', limit: null, rewardCycle: 'billing', rewards: [
-      { id: 'r1', name: '國內外基本', type: 'cashback', rate: 1, limit: null },
-      { id: 'r2', name: '網購/行動支付', type: 'cashback', rate: 2, limit: 7500 }
-    ], iconName: 'Smartphone', color: 'bg-green-100 text-green-600' },
-    { name: 'UNI卡', billing: '每月21日', limit: null, rewardCycle: 'billing', rewards: [
-      { id: 'r1', name: '一般', type: 'cashback', rate: 1, limit: null },
-      { id: 'r2', name: '簡單選', type: 'cashback', rate: 2, limit: 50000 },
-{ id: 'r3', name: '任意選', type: 'cashback', rate: 2.5, limit: 40000 },
-      { id: 'r4', name: 'ＵＰ選', type: 'cashback', rate: 3.5, limit: 142857 }
-    ], iconName: 'CreditCard', color: 'bg-teal-100 text-teal-600' },
-    { name: 'PI卡', billing: '每月21日', limit: null, rewardCycle: 'calendar', rewards: [
-{ id: 'r1', name: '國內外', type: 'cashback', rate: 1, limit: null },
-      { id: 'r2', name: '保費', type: 'cashback', rate: 1.2, limit: null },
-{ id: 'r3', name: 'ＰＩ全家', type: 'cashback', rate: 5, limit: 2000 }], iconName: 'Zap', color: 'bg-blue-100 text-blue-600' }
-  ],
-  '中信': [{ name: 'LP卡', billing: '每月25日', limit: null, rewardCycle: 'calendar', rewards: [
-{ id: 'r1', name: '國內外', type: 'cashback', rate: 1, limit: null },
-      { id: 'r2', name: '國外實體', type: 'cashback', rate: 2.8, limit: null }
-], iconName: 'CreditCard', color: 'bg-lime-100 text-lime-600' }],
-  '國泰': [
-    { name: 'CUBE卡', billing: '每月27日', limit: null, rewardCycle: 'calendar', rewards: [], iconName: 'Package', color: 'bg-green-100 text-green-600' }
-  ],
+  '永豐': [{ name: '運動卡', billing: '每月14日', limit: null, rewardCycle: 'calendar', rewards: [{ id: 'r1', name: '一般', type: 'cashback', rate: 1, limit: null }, { id: 'r2', name: '運動', type: 'cashback', rate: 1, limit: 5000 }, { id: 'r3', name: 'ＡＰ加碼', type: 'cashback', rate: 3, limit: 10000 }], iconName: 'Heart', color: 'bg-rose-100 text-rose-600' }, { name: '大戶卡', billing: '每月14日', limit: null, rewardCycle: 'billing', rewards: [{ id: 'r1', name: '國內', type: 'cashback', rate: 1, limit: null }, { id: 'r2', name: '國外', type: 'cashback', rate: 2, limit: null }, { id: 'r3', name: '大戶ＰＳ加碼', type: 'cashback', rate: 4, limit: 25000 }], iconName: 'Landmark', color: 'bg-gray-100 text-gray-800' }, { name: '大威卡', billing: '每月14日', limit: null, rewardCycle: 'billing', rewards: [{ id: 'r1', name: '國內', type: 'cashback', rate: 0.5, limit: null }, { id: 'r2', name: '國外', type: 'cashback', rate: 2.5, limit: null }, { id: 'r3', name: 'ＬＰ加碼', type: 'cashback', rate: 1.5, limit: 20000 }], iconName: 'CreditCard', color: 'bg-slate-100 text-slate-600' }, { name: '幣倍卡', billing: '每月14日', limit: null, rewardCycle: 'calendar', rewards: [{ id: 'r1', name: '國內', type: 'cashback', rate: 1, limit: null }, { id: 'r2', name: '國外', type: 'cashback', rate: 2, limit: null }, { id: 'r3', name: '指定', type: 'cashback', rate: 4, limit: 20000 }], iconName: 'Coins', color: 'bg-yellow-100 text-yellow-600' }],
+  '玉山': [{ name: 'UBEAR卡', billing: '每月21日', limit: null, rewardCycle: 'billing', rewards: [{ id: 'r1', name: '國內外基本', type: 'cashback', rate: 1, limit: null }, { id: 'r2', name: '網購/行動支付', type: 'cashback', rate: 2, limit: 7500 }], iconName: 'Smartphone', color: 'bg-green-100 text-green-600' }, { name: 'UNI卡', billing: '每月21日', limit: null, rewardCycle: 'billing', rewards: [{ id: 'r1', name: '一般', type: 'cashback', rate: 1, limit: null }, { id: 'r2', name: '簡單選', type: 'cashback', rate: 2, limit: 50000 }, { id: 'r3', name: '任意選', type: 'cashback', rate: 2.5, limit: 40000 }, { id: 'r4', name: 'ＵＰ選', type: 'cashback', rate: 3.5, limit: 142857 }], iconName: 'CreditCard', color: 'bg-teal-100 text-teal-600' }, { name: 'PI卡', billing: '每月21日', limit: null, rewardCycle: 'calendar', rewards: [{ id: 'r1', name: '國內外', type: 'cashback', rate: 1, limit: null }, { id: 'r2', name: '保費', type: 'cashback', rate: 1.2, limit: null }, { id: 'r3', name: 'ＰＩ全家', type: 'cashback', rate: 5, limit: 2000 }], iconName: 'Zap', color: 'bg-blue-100 text-blue-600' }],
+  '中信': [{ name: 'LP卡', billing: '每月25日', limit: null, rewardCycle: 'calendar', rewards: [{ id: 'r1', name: '國內外', type: 'cashback', rate: 1, limit: null }, { id: 'r2', name: '國外實體', type: 'cashback', rate: 2.8, limit: null }], iconName: 'CreditCard', color: 'bg-lime-100 text-lime-600' }],
+  '國泰': [{ name: 'CUBE卡', billing: '每月27日', limit: null, rewardCycle: 'calendar', rewards: [], iconName: 'Package', color: 'bg-green-100 text-green-600' }],
   '台新': [{ name: '理查卡', billing: '每月27日', limit: null, rewardCycle: 'calendar', rewards: [], iconName: 'CreditCard', color: 'bg-red-100 text-red-600' }]
 };
 
@@ -111,20 +38,11 @@ const DEFAULT_CATEGORIES = [
 ];
 
 const COLOR_OPTIONS = [
-  'bg-red-100 text-red-600', 'bg-orange-100 text-orange-600', 'bg-amber-100 text-amber-600',
-  'bg-yellow-100 text-yellow-600', 'bg-lime-100 text-lime-600', 'bg-green-100 text-green-600',
-  'bg-emerald-100 text-emerald-600', 'bg-teal-100 text-teal-600', 'bg-cyan-100 text-cyan-600',
-  'bg-sky-100 text-sky-600', 'bg-blue-100 text-blue-600', 'bg-indigo-100 text-indigo-600',
-  'bg-violet-100 text-violet-600', 'bg-purple-100 text-purple-600', 'bg-fuchsia-100 text-fuchsia-600',
-  'bg-pink-100 text-pink-600', 'bg-rose-100 text-rose-600', 'bg-slate-100 text-slate-600',
-  'bg-gray-100 text-gray-600', 'bg-zinc-100 text-zinc-600'
+  'bg-red-100 text-red-600', 'bg-orange-100 text-orange-600', 'bg-amber-100 text-amber-600', 'bg-yellow-100 text-yellow-600', 'bg-lime-100 text-lime-600', 'bg-green-100 text-green-600', 'bg-emerald-100 text-emerald-600', 'bg-teal-100 text-teal-600', 'bg-cyan-100 text-cyan-600', 'bg-sky-100 text-sky-600', 'bg-blue-100 text-blue-600', 'bg-indigo-100 text-indigo-600', 'bg-violet-100 text-violet-600', 'bg-purple-100 text-purple-600', 'bg-fuchsia-100 text-fuchsia-600', 'bg-pink-100 text-pink-600', 'bg-rose-100 text-rose-600', 'bg-slate-100 text-slate-600', 'bg-gray-100 text-gray-600', 'bg-zinc-100 text-zinc-600'
 ];
 
 const ICON_MAP = { 
-  Utensils, Shirt, Home, Car, BookOpen, Gamepad2, MoreHorizontal, CreditCard, Calendar, PieChart, List, Settings, 
-  Gift, TrendingUp, ShoppingCart, Coffee, Heart, Briefcase, Plane, Landmark, Wallet, Banknote, PiggyBank, Monitor, 
-  Smartphone, Bus, Train, Scissors, Camera, Music, Ticket, Umbrella, ShoppingBag, Package, Globe, Map, Zap, Award, Star, Palette, Upload, Download, FileText, LogOut,
-  UserCircle
+  Utensils, Shirt, Home, Car, BookOpen, Gamepad2, MoreHorizontal, CreditCard, Calendar, PieChart, List, Settings, Gift, TrendingUp, ShoppingCart, Coffee, Heart, Briefcase, Plane, Landmark, Wallet, Banknote, PiggyBank, Monitor, Smartphone, Bus, Train, Scissors, Camera, Music, Ticket, Umbrella, ShoppingBag, Package, Globe, Map, Zap, Award, Star, Palette, Upload, Download, FileText, LogOut, UserCircle
 };
 const AVAILABLE_ICONS = Object.keys(ICON_MAP);
 
@@ -150,9 +68,6 @@ try {
   console.error("Firebase init failed:", error);
 }
 
-// ==========================================
-// 輔助函式與全域防呆樣式
-// ==========================================
 const extractBillingDay = (billingStr) => {
   if (!billingStr || billingStr === '無') return 999;
   const match = billingStr.match(/\d+/);
@@ -169,24 +84,18 @@ const getBillingCycleDates = (viewYear, viewMonthNum, billingDayStr) => {
   return { startStr: formatDate(startDate), endStr: formatDate(endDate), cycleLabel: `${startDate.getMonth()+1}/${startDate.getDate()} ~ ${endDate.getMonth()+1}/${endDate.getDate()}` };
 };
 
+// 💡 清除所有會引起混淆的 padding css class
 const GlobalStyles = () => (
   <style dangerouslySetInnerHTML={{__html: `
     html, body, #root {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden; 
-      overscroll-behavior-y: none;
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      overflow: hidden; overscroll-behavior-y: none;
       -webkit-tap-highlight-color: transparent;
+      background-color: #ffffff !important;
     }
     input, textarea, select {
-      font-size: 16px !important;
-      -webkit-appearance: none;
-      -webkit-user-select: text !important;
-      user-select: text !important;
-      pointer-events: auto !important;
-      touch-action: manipulation !important;
+      font-size: 16px !important; -webkit-appearance: none; -webkit-user-select: text !important;
+      user-select: text !important; pointer-events: auto !important; touch-action: manipulation !important;
     }
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -194,9 +103,6 @@ const GlobalStyles = () => (
   `}} />
 );
 
-// ==========================================
-// 3. 主應用程式組件
-// ==========================================
 export default function App() {
   const [user, setUser] = useState(null);
   const [expenses, setExpenses] = useState([]);
@@ -211,168 +117,73 @@ export default function App() {
   const [editingCategory, setEditingCategory] = useState(null);
 
   const [pickerConfig, setPickerConfig] = useState(null); 
-
   const [editingExpenseId, setEditingExpenseId] = useState(null);
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().slice(0, 10),
-    category: '餐飲', amount: '', description: '', bank: '現金', card: '現金', billingDate: '無',
-    appliedRewards: [] 
+    date: new Date().toISOString().slice(0, 10), category: '餐飲', amount: '', description: '', bank: '現金', card: '現金', billingDate: '無', appliedRewards: [] 
   });
-
   const [editingBank, setEditingBank] = useState(null);
   const [newBankName, setNewBankName] = useState('');
-  
   const [editingCardKey, setEditingCardKey] = useState(null); 
   const [cardForm, setCardForm] = useState({ name: '', billing: '', limit: '', rewardCycle: 'calendar', rewards: [], iconName: 'CreditCard', color: 'bg-gray-100 text-gray-600' });
-
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
-
   const [webhookUrl, setWebhookUrl] = useState('');
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
-
   const [importStatus, setImportStatus] = useState('');
   const fileInputRef = useRef(null);
-
   const [expenseToDelete, setExpenseToDelete] = useState(null);
   const [showUnusedCards, setShowUnusedCards] = useState(false);
 
-  // ==========================================
-  // 🚀 Meta Tags 優化 (保證全螢幕洗白，防漏底)
-  // ==========================================
   useEffect(() => {
     try {
-      const isSettings = activeTab === 'settings';
-      const targetColor = isSettings ? '#f9fafb' : '#059669'; 
-
       let viewport = document.querySelector("meta[name=viewport]");
-      if (!viewport) {
-        viewport = document.createElement("meta");
-        viewport.name = "viewport";
-        document.head.appendChild(viewport);
-      }
-      if (!viewport.content.includes("viewport-fit=cover")) {
-        viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover";
-      }
-
-      let themeColor = document.querySelector("meta[name=theme-color]");
-      if (!themeColor) {
-        themeColor = document.createElement("meta");
-        themeColor.name = "theme-color";
-        document.head.appendChild(themeColor);
-      }
-      themeColor.content = targetColor;
-
+      if (!viewport) { viewport = document.createElement("meta"); viewport.name = "viewport"; document.head.appendChild(viewport); }
+      if (!viewport.content.includes("viewport-fit=cover")) viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover";
       let appleStatusBar = document.querySelector("meta[name=apple-mobile-web-app-status-bar-style]");
-      if (!appleStatusBar) {
-        appleStatusBar = document.createElement("meta");
-        appleStatusBar.name = "apple-mobile-web-app-status-bar-style";
-        appleStatusBar.content = "black-translucent";
-        document.head.appendChild(appleStatusBar);
-      }
-
-      document.documentElement.style.backgroundColor = '#ffffff';
-      document.body.style.backgroundColor = '#ffffff';
-    } catch (e) {
-      console.warn("無法調整 Meta Tags", e);
-    }
-  }, [activeTab]);
+      if (!appleStatusBar) { appleStatusBar = document.createElement("meta"); appleStatusBar.name = "apple-mobile-web-app-status-bar-style"; appleStatusBar.content = "black-translucent"; document.head.appendChild(appleStatusBar); }
+    } catch (e) {}
+  }, []);
 
   const sortedBankNames = useMemo(() => {
     return Object.keys(bankCards).sort((a, b) => {
-      if (a === '現金') return -1;
-      if (b === '現金') return 1;
-      const getMinDay = (bName) => {
-        const cards = bankCards[bName] || [];
-        if (cards.length === 0) return 999;
-        return Math.min(...cards.map(c => extractBillingDay(c.billing)));
-      };
-      const dayA = getMinDay(a);
-      const dayB = getMinDay(b);
-      if (dayA !== dayB) return dayA - dayB;
-      return a.localeCompare(b);
+      if (a === '現金') return -1; if (b === '現金') return 1;
+      const getMinDay = (bName) => { const cards = bankCards[bName] || []; if (cards.length === 0) return 999; return Math.min(...cards.map(c => extractBillingDay(c.billing))); };
+      const dayA = getMinDay(a); const dayB = getMinDay(b);
+      if (dayA !== dayB) return dayA - dayB; return a.localeCompare(b);
     });
   }, [bankCards]);
 
   useEffect(() => {
     if (!auth) return;
     let initAttempted = false;
-
     const initAuth = async () => {
       initAttempted = true;
       try {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          try {
-            await signInWithCustomToken(auth, __initial_auth_token);
-          } catch (tokenErr) {
-            console.warn("自訂 Token 不符，嘗試退回匿名登入。");
-            await signInAnonymously(auth);
-          }
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (err) { 
-        console.warn("自動登入失敗 (可能是使用自訂 Firebase 金鑰且未啟用匿名登入)，請登入專屬帳號:", err.message);
-      } finally {
-        setIsLoading(false);
-      }
+          try { await signInWithCustomToken(auth, __initial_auth_token); } catch (tokenErr) { await signInAnonymously(auth); }
+        } else { await signInAnonymously(auth); }
+      } catch (err) { } finally { setIsLoading(false); }
     };
-
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        setIsLoading(false);
-      } else {
-        setUser(null);
-        if (!initAttempted) {
-          initAuth();
-        } else {
-          setIsLoading(false);
-        }
-      }
+      if (currentUser) { setUser(currentUser); setIsLoading(false); } else { setUser(null); if (!initAttempted) initAuth(); else setIsLoading(false); }
     });
-
     return () => unsubscribe();
   }, []);
 
   const handleAuthSubmit = async (e, isRegistering) => {
-    e.preventDefault();
-    if (!authEmail || !authPassword) return;
-    setAuthError('');
-    setIsLoading(true);
+    e.preventDefault(); if (!authEmail || !authPassword) return;
+    setAuthError(''); setIsLoading(true);
     try {
-      if (isRegistering) {
-        await createUserWithEmailAndPassword(auth, authEmail, authPassword);
-        alert('註冊成功！系統已切換至您的專屬帳號。');
-      } else {
-        await signInWithEmailAndPassword(auth, authEmail, authPassword);
-        alert('登入成功！');
-      }
-      setAuthEmail('');
-      setAuthPassword('');
-    } catch (error) {
-      console.error("Auth error:", error);
-      setAuthError(error.message.includes('invalid-credential') ? '帳號或密碼錯誤' : 
-                   error.message.includes('email-already-in-use') ? '此信箱已被註冊' : '發生錯誤，請確認您的 Firebase 後台已啟用 Email 登入。');
-    } finally {
-      setIsLoading(false);
-    }
+      if (isRegistering) { await createUserWithEmailAndPassword(auth, authEmail, authPassword); alert('註冊成功！'); } 
+      else { await signInWithEmailAndPassword(auth, authEmail, authPassword); alert('登入成功！'); }
+      setAuthEmail(''); setAuthPassword('');
+    } catch (error) { setAuthError('帳號或密碼錯誤，或是此信箱已被註冊'); } finally { setIsLoading(false); }
   };
 
   const handleLogout = async () => {
-    if (window.confirm('確定要登出系統嗎？將會切換回訪客模式。')) {
-      try {
-        await signOut(auth);
-        setExpenses([]);
-        setCategories(DEFAULT_CATEGORIES);
-        setBankCards(DEFAULT_BANK_CARDS);
-        setWebhookUrl('');
-        setActiveTab('list');
-      } catch (error) {
-        console.error("Logout error:", error);
-        alert("登出失敗，請稍後再試。");
-      }
+    if (window.confirm('確定要登出嗎？')) {
+      await signOut(auth); setExpenses([]); setCategories(DEFAULT_CATEGORIES); setBankCards(DEFAULT_BANK_CARDS); setWebhookUrl(''); setActiveTab('list');
     }
   };
 
@@ -385,7 +196,6 @@ export default function App() {
           const data = docSnap.data();
           if (data.categories) setCategories(data.categories);
           if (data.webhookUrl) setWebhookUrl(data.webhookUrl);
-          
           if (data.bankCards) {
              const migratedBanks = {};
              Object.keys(data.bankCards).forEach(bankName => {
@@ -409,17 +219,13 @@ export default function App() {
              });
              Object.keys(DEFAULT_BANK_CARDS).forEach(defaultBank => {
                if (!migratedBanks[defaultBank]) migratedBanks[defaultBank] = DEFAULT_BANK_CARDS[defaultBank];
-               else {
-                 DEFAULT_BANK_CARDS[defaultBank].forEach(defCard => {
-                   if (!migratedBanks[defaultBank].find(c => c.name === defCard.name)) migratedBanks[defaultBank].push(defCard);
-                 });
-               }
+               else { DEFAULT_BANK_CARDS[defaultBank].forEach(defCard => { if (!migratedBanks[defaultBank].find(c => c.name === defCard.name)) migratedBanks[defaultBank].push(defCard); }); }
              });
              setBankCards(migratedBanks);
           }
         }
         setSettingsLoaded(true);
-      } catch (error) { console.error(error); setSettingsLoaded(true); }
+      } catch (error) { setSettingsLoaded(true); }
     };
     loadSettings();
 
@@ -429,9 +235,7 @@ export default function App() {
       data.sort((a, b) => {
         const dateDiff = new Date(b.date) - new Date(a.date);
         if (dateDiff !== 0) return dateDiff;
-        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return timeB - timeA;
+        return (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0);
       });
       setExpenses(data);
     });
@@ -447,7 +251,6 @@ export default function App() {
     const filtered = expenses.filter(exp => exp.date.startsWith(currentMonth));
     let total = 0; filtered.forEach(exp => { total += parseFloat(exp.amount) || 0; });
     const [viewYear, viewMonth] = currentMonth.split('-').map(Number);
-    
     const bnkTotals = {}; const crdTotals = {}; const tracking = []; let finalCashback = 0; const finalPoints = {}; const bRewards = {};
 
     Object.keys(bankCards).forEach(b => { bRewards[b] = { cashback: 0, points: {} }; });
@@ -484,9 +287,7 @@ export default function App() {
         cardInfo.rewards.forEach(rule => {
           let cycleSpent = 0;
           expenses.forEach(exp => {
-            if (exp.bank === bankName && exp.card === cardInfo.name && exp.date >= rewardStartStr && exp.date <= rewardEndStr) {
-              if (exp.appliedRewards && exp.appliedRewards.includes(rule.id)) cycleSpent += (parseFloat(exp.amount) || 0);
-            }
+            if (exp.bank === bankName && exp.card === cardInfo.name && exp.date >= rewardStartStr && exp.date <= rewardEndStr && exp.appliedRewards?.includes(rule.id)) cycleSpent += (parseFloat(exp.amount) || 0);
           });
           if (rule.limit) tracking.push({ cardName: cardInfo.name, ruleName: rule.name, spent: cycleSpent, limit: rule.limit, cycleLabel: label });
           let cappedSpent = rule.limit ? Math.min(cycleSpent, rule.limit) : cycleSpent;
@@ -571,14 +372,10 @@ export default function App() {
     if (expenseToEdit) {
       setEditingExpenseId(expenseToEdit.id);
       setFormData({
-        date: expenseToEdit.date || new Date().toISOString().slice(0, 10),
-        category: expenseToEdit.category || '餐飲',
-        amount: expenseToEdit.amount || '',
-        description: expenseToEdit.description || '',
-        bank: expenseToEdit.bank || '現金',
-        card: expenseToEdit.card || '現金',
-        billingDate: expenseToEdit.billingDate || '無',
-        appliedRewards: expenseToEdit.appliedRewards || []
+        date: expenseToEdit.date || new Date().toISOString().slice(0, 10), category: expenseToEdit.category || '餐飲',
+        amount: expenseToEdit.amount || '', description: expenseToEdit.description || '',
+        bank: expenseToEdit.bank || '現金', card: expenseToEdit.card || '現金',
+        billingDate: expenseToEdit.billingDate || '無', appliedRewards: expenseToEdit.appliedRewards || []
       });
     } else {
       setEditingExpenseId(null);
@@ -598,17 +395,13 @@ export default function App() {
       } else {
         expenseData.createdAt = new Date().toISOString();
         await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'expenses'), expenseData);
-        
         if (webhookUrl && webhookUrl.trim().startsWith('http')) {
           try {
             const cardInfo = (bankCards[expenseData.bank] || []).find(c => c.name === expenseData.card);
             let rewardTexts = [];
             if (cardInfo && cardInfo.rewards && expenseData.appliedRewards) {
               cardInfo.rewards.forEach(r => {
-                if (expenseData.appliedRewards.includes(r.id)) {
-                  if (r.type === 'cashback') rewardTexts.push(`${r.name} ${r.rate}%`);
-                  if (r.type === 'points') rewardTexts.push(`${r.name} ${r.earn}${r.unit}`);
-                }
+                if (expenseData.appliedRewards.includes(r.id)) rewardTexts.push(r.type === 'cashback' ? `${r.name} ${r.rate}%` : `${r.name} ${r.earn}${r.unit}`);
               });
             }
             const payload = {
@@ -616,10 +409,8 @@ export default function App() {
               amount: expenseData.amount, bank: expenseData.bank, card: expenseData.card, billingDate: expenseData.billingDate,
               rewardDetails: rewardTexts.length > 0 ? rewardTexts.join('、') : '無'
             };
-            fetch(webhookUrl.trim(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-              .then(res => { if(!res.ok) console.warn("Webhook Error:", res.status); })
-              .catch(err => { console.error('Webhook Error:', err); });
-          } catch (err) { console.error('Webhook payload error:', err); }
+            fetch(webhookUrl.trim(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(err => { console.error('Webhook Error:', err); });
+          } catch (err) {}
         }
       }
       setIsModalOpen(false); setEditingExpenseId(null);
@@ -630,8 +421,7 @@ export default function App() {
     if (!user) return; 
     try {
         const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'expenses', id);
-        await deleteDoc(docRef); 
-        setExpenseToDelete(null); 
+        await deleteDoc(docRef); setExpenseToDelete(null); 
     } catch (error) { console.error("Error deleting document: ", error); }
   };
 
@@ -678,8 +468,7 @@ export default function App() {
   };
 
   const handleJumpToCurrentMonth = () => {
-    const today = new Date();
-    setCurrentMonth(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`);
+    const today = new Date(); setCurrentMonth(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`);
   };
 
   const handlePickerSave = (selectedIcon, selectedColor) => {
@@ -740,7 +529,7 @@ export default function App() {
               const expenseData = { date: dateFmt, category: categoryFmt, description: descFmt, amount: amount, bank: bankFmt, card: cardFmt, billingDate: cols[6] || '無', appliedRewards: [], createdAt: new Date().toISOString() };
               await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'expenses'), expenseData);
               existingSignatures.add(signature); successCount++;
-            } catch (err) { console.error('Error importing row:', row, err); errorCount++; }
+            } catch (err) { errorCount++; }
           } else { errorCount++; }
         } else { errorCount++; }
       }
@@ -750,14 +539,11 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  // ==========================================
-  // UI 渲染 (全固定版面)
-  // ==========================================
   if (isLoading && !user) return <div className="fixed inset-0 flex items-center justify-center bg-gray-50 text-emerald-600"><GlobalStyles /><Loader2 className="animate-spin mr-2" size={20} /> 載入中...</div>;
 
   if (!user) {
     return (
-      <div className="fixed inset-0 bg-white md:bg-gray-200 flex justify-center items-center font-sans p-4" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+      <div className="fixed inset-0 bg-white md:bg-gray-200 flex justify-center items-center font-sans p-4" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
         <GlobalStyles />
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 space-y-6 overflow-y-auto max-h-full">
           <div className="text-center">
@@ -794,11 +580,13 @@ export default function App() {
       {/* 最大容器：Header -> Main(Scroll) -> Footer */}
       <div className="w-full max-w-md bg-gray-50 relative flex flex-col h-full shadow-2xl overflow-hidden">
         
-        {/* [固定] 頂部標題 Header */}
+        {/* ========================================== */}
+        {/* [固定] 頂部標題 Header - 推向極限動態島 */}
+        {/* ========================================== */}
         {activeTab !== 'settings' ? (
           <header 
             className="bg-emerald-600 text-white pb-3 px-5 rounded-b-[2rem] shadow-md z-10 shrink-0"
-            style={{ paddingTop: 'calc(0.25rem + env(safe-area-inset-top))' }}
+            style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top, 20px))' }}
           >
             <div className="flex items-center justify-between bg-emerald-700/50 rounded-2xl p-1 mb-3 mt-1">
               <button onClick={() => { const [y, m] = currentMonth.split('-').map(Number); setCurrentMonth(`${new Date(y, m - 2, 1).getFullYear()}-${String(new Date(y, m - 2, 1).getMonth() + 1).padStart(2, '0')}`); }} className="p-2 hover:bg-emerald-800 rounded-xl transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
@@ -815,16 +603,16 @@ export default function App() {
         ) : (
           <header 
             className="bg-gray-50 pb-3 px-6 z-10 shrink-0 border-b border-gray-200 shadow-sm"
-            style={{ paddingTop: 'calc(0.25rem + env(safe-area-inset-top))' }}
+            style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top, 20px))' }}
           >
             <div className="flex justify-between items-center px-2 mt-1">
               <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
-              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.1.5 (圖示精準包覆)</span>
+              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.1.7 (終極版)</span>
             </div>
           </header>
         )}
 
-        {/* [獨立滑動] 中間內容區塊 */}
+        {/* [獨立滑動] 中間內容區塊 - 預留給加號的捲動空間 */}
         <main 
           className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 custom-scrollbar z-0 relative"
           style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}
@@ -1217,7 +1005,7 @@ export default function App() {
         {/* 外觀選擇器 Modal */}
         {pickerConfig && (
           <div className="fixed inset-0 bg-black/70 z-[60] flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity">
-            <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl" style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
+            <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl" style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}>
               <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Palette size={20} className="text-emerald-600"/> 自訂外觀</h3><button onClick={() => setPickerConfig(null)} className="p-1 text-gray-400 hover:bg-gray-100 rounded-full"><X size={20}/></button></div>
               <div className="flex justify-center mb-6"><div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-md ${pickerConfig.color}`}>{React.createElement(ICON_MAP[pickerConfig.iconName] || MoreHorizontal, { size: 32 })}</div></div>
               <div className="space-y-4">
@@ -1229,7 +1017,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 懸浮新增按鈕 (FAB) */}
+        {/* 🚀 懸浮新增按鈕 (FAB) - 綁定最嚴格的推算邏輯 */}
         <button 
           onClick={() => openExpenseModal()} 
           className="absolute right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-emerald-700 transition-all z-30"
@@ -1238,23 +1026,23 @@ export default function App() {
           <Plus size={30} />
         </button>
 
-        {/* 💡 底部導覽列 (純白貼齊 Home 橫條設計，縮小空白) */}
+        {/* 🚀 底部導覽列 - 將所有的 padding-bottom 拔除，回歸純淨 */}
         <div 
           className="w-full bg-white border-t border-gray-200 z-20 shrink-0"
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         >
-          <div className="flex justify-between items-center px-6 h-[52px]">
-            <button onClick={() => setActiveTab('list')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'list' ? 'text-emerald-600' : 'text-gray-400'}`}>
+          <div className="flex justify-between items-center px-6 pt-2 pb-1">
+            <button onClick={() => setActiveTab('list')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition ${activeTab === 'list' ? 'text-emerald-600' : 'text-gray-400'}`}>
               <List size={22} />
-              <span className="text-[10px] font-bold">明細</span>
+              <span className="text-[10px] font-bold leading-none">明細</span>
             </button>
-            <button onClick={() => setActiveTab('report')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'report' ? 'text-emerald-600' : 'text-gray-400'}`}>
+            <button onClick={() => setActiveTab('report')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition ${activeTab === 'report' ? 'text-emerald-600' : 'text-gray-400'}`}>
               <PieChart size={22} />
-              <span className="text-[10px] font-bold">報表</span>
+              <span className="text-[10px] font-bold leading-none">報表</span>
             </button>
-            <button onClick={() => setActiveTab('settings')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'settings' ? 'text-emerald-600' : 'text-gray-400'}`}>
+            <button onClick={() => setActiveTab('settings')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition ${activeTab === 'settings' ? 'text-emerald-600' : 'text-gray-400'}`}>
               <Settings size={22} />
-              <span className="text-[10px] font-bold">設定</span>
+              <span className="text-[10px] font-bold leading-none">設定</span>
             </button>
           </div>
         </div>
