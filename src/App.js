@@ -1226,41 +1226,37 @@ export default function App() {
           </div>
         )}
 
-        {/* 懸浮新增按鈕 (FAB) */}
+        {/* 懸浮新增按鈕 (FAB) - 🚀 綁定內聯樣式強制推高，解決掉落重疊問題 */}
         <button 
           onClick={() => openExpenseModal()} 
           className="absolute right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-emerald-700 transition-all z-30"
-          style={{ bottom: 'calc(4rem + max(0px, env(safe-area-inset-bottom)))' }}
+          style={{ bottom: 'calc(5.5rem + env(safe-area-inset-bottom, 0px))' }}
         >
           <Plus size={30} />
         </button>
 
         {/* 💡 底部導覽列 (純白貼齊 Home 橫條設計，縮小空白) */}
-        <div 
-          className="w-full bg-white border-t border-gray-200 z-20 shrink-0 flex justify-between items-center px-6 pt-2"
-          style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
-        >
-          <button onClick={() => setActiveTab('list')} className={`flex-1 flex flex-col items-center gap-1 transition ${activeTab === 'list' ? 'text-emerald-600' : 'text-gray-400'}`}>
-            <List size={24} />
-            <span className="text-[10px] font-bold">明細</span>
-          </button>
-          <button onClick={() => setActiveTab('report')} className={`flex-1 flex flex-col items-center gap-1 transition ${activeTab === 'report' ? 'text-emerald-600' : 'text-gray-400'}`}>
-            <PieChart size={24} />
-            <span className="text-[10px] font-bold">報表</span>
-          </button>
-          <button onClick={() => setActiveTab('settings')} className={`flex-1 flex flex-col items-center gap-1 transition ${activeTab === 'settings' ? 'text-emerald-600' : 'text-gray-400'}`}>
-            <Settings size={24} />
-            <span className="text-[10px] font-bold">設定</span>
-          </button>
+        <div className="w-full bg-white border-t border-gray-200 z-20 shrink-0 pb-safe-bottom">
+          <div className="flex justify-between items-center px-8 pt-2 pb-1.5">
+            <button onClick={() => setActiveTab('list')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition ${activeTab === 'list' ? 'text-emerald-600 scale-105' : 'text-gray-400 hover:text-gray-500'}`}>
+              <List size={22} />
+              <span className="text-[10px] font-bold">明細</span>
+            </button>
+            <button onClick={() => setActiveTab('report')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition ${activeTab === 'report' ? 'text-emerald-600 scale-105' : 'text-gray-400 hover:text-gray-500'}`}>
+              <PieChart size={22} />
+              <span className="text-[10px] font-bold">報表</span>
+            </button>
+            <button onClick={() => setActiveTab('settings')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition ${activeTab === 'settings' ? 'text-emerald-600 scale-105' : 'text-gray-400 hover:text-gray-500'}`}>
+              <Settings size={22} />
+              <span className="text-[10px] font-bold">設定</span>
+            </button>
+          </div>
         </div>
 
         {/* 新增/編輯支出 Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity pointer-events-auto">
-            <div 
-              className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl overflow-y-auto max-h-[90dvh]"
-              style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
-            >
+            <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl overflow-y-auto max-h-[90dvh] pb-safe-modal">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">{editingExpenseId ? '編輯明細' : '新增支出'}</h2>
                 <button onClick={() => setIsModalOpen(false)} className="p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200"><X size={20} /></button>
