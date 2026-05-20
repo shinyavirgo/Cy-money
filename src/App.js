@@ -280,7 +280,7 @@ export default function App() {
         document.head.appendChild(appleStatusBar);
       }
 
-      // 4. 固定網頁最底層顏色為純白，讓手機底部的 Home 橫條區域與純白導覽列完美融合，消除多餘綠色區塊
+      // 4. 強制將網頁最底層顏色鎖定為「純白色」，與底部導覽列完美融合，消除任何突兀的綠色或灰色區塊
       document.body.style.backgroundColor = '#ffffff';
     } catch (e) {
       console.warn("無法調整 Meta Tags", e);
@@ -971,15 +971,15 @@ export default function App() {
   // 全固定外觀：Login
   if (!user) {
     return (
-      <div className="fixed inset-0 bg-gray-200 flex justify-center items-center font-sans p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))]">
+      <div className="fixed inset-0 bg-gray-200 flex justify-center items-center font-sans p-4" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
         <GlobalStyles />
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 space-y-6 overflow-y-auto max-h-full">
           <div className="text-center">
             <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <Wallet size={32} />
             </div>
-            <h1 className="text-2xl font-bold text-gray-800">私有雲端記帳系統</h1>
-            <p className="text-sm text-gray-500 mt-2">資料已切換至您的專屬 Firebase</p>
+            <h1 className="text-2xl font-bold text-gray-800">雲端記帳小幫手</h1>
+            <p className="text-sm text-gray-500 mt-2">Create by Cy</p>
           </div>
 
           {authError && (
@@ -1035,14 +1035,16 @@ export default function App() {
   return (
     <div className="fixed inset-0 bg-gray-200 flex justify-center font-sans overflow-hidden">
       <GlobalStyles />
-      {/* 最大容器，採用 Flex Column 排列： Header -> Main(Scroll) -> Footer */}
+      
+      {/* 最大容器：Header -> Main(Scroll) -> Footer */}
       <div className="w-full max-w-md bg-gray-50 relative flex flex-col h-full shadow-2xl overflow-hidden">
         
-        {/* ========================================== */}
-        {/* [固定] 頂部標題 Header (縮緊並貼齊動態島) */}
-        {/* ========================================== */}
+        {/* [固定] 頂部標題 Header */}
         {activeTab !== 'settings' ? (
-          <header className="bg-emerald-600 text-white pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 px-6 rounded-b-[2rem] shadow-md z-10 shrink-0">
+          <header 
+            className="bg-emerald-600 text-white pb-3 px-6 rounded-b-[2rem] shadow-md z-10 shrink-0"
+            style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}
+          >
             <div className="flex items-center justify-between bg-emerald-700/50 rounded-2xl p-1 mb-4 mt-1">
               <button onClick={() => { const [y, m] = currentMonth.split('-').map(Number); setCurrentMonth(`${new Date(y, m - 2, 1).getFullYear()}-${String(new Date(y, m - 2, 1).getMonth() + 1).padStart(2, '0')}`); }} className="p-2 hover:bg-emerald-800 rounded-xl transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
               <div 
@@ -1060,18 +1062,22 @@ export default function App() {
             </div>
           </header>
         ) : (
-          <header className="bg-gray-50 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 px-6 z-10 shrink-0 border-b border-gray-200 shadow-sm">
+          <header 
+            className="bg-gray-50 pb-3 px-6 z-10 shrink-0 border-b border-gray-200 shadow-sm"
+            style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}
+          >
             <div className="flex justify-between items-center px-2">
               <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
-              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.1.1 (極致視野)</span>
+              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.1.2 (iOS完美底部)</span>
             </div>
           </header>
         )}
 
-        {/* ========================================== */}
-        {/* [獨立滑動] 中間內容區塊 Main (移除隱形多餘空白) */}
-        {/* ========================================== */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 custom-scrollbar pb-6 relative z-0">
+        {/* [獨立滑動] 中間內容區塊 (完美控制滾動不透底) */}
+        <main 
+          className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 custom-scrollbar z-0"
+          style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
+        >
           
           {/* == 明細頁 == */}
           {activeTab === 'list' && (
@@ -1688,24 +1694,33 @@ export default function App() {
         {/* ========================================== */}
         <button
           onClick={() => openExpenseModal()}
-          className="absolute bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-400 hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all z-30"
+          className="absolute right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-emerald-700 transition-all z-30"
+          style={{ bottom: 'calc(5.5rem + max(0px, env(safe-area-inset-bottom)))' }}
         >
           <Plus size={30} />
         </button>
 
         {/* ========================================== */}
-        {/* 底部導覽列 - 完美貼齊 Home 指示條並壓縮白邊 */}
+        {/* 底部導覽列 (純白底、精準貼齊 Home 橫條設計) */}
         {/* ========================================== */}
-        <div className="mt-auto w-full bg-white border-t border-gray-200 px-6 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex justify-between items-center z-20 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-          <button onClick={() => setActiveTab('list')} className={`flex-1 flex flex-col items-center gap-1 transition ${activeTab === 'list' ? 'text-emerald-600' : 'text-gray-400'}`}>
-            <List size={24} /><span className="text-xs font-bold">明細</span>
-          </button>
-          <button onClick={() => setActiveTab('report')} className={`flex-1 flex flex-col items-center gap-1 transition ${activeTab === 'report' ? 'text-emerald-600' : 'text-gray-400'}`}>
-            <PieChart size={24} /><span className="text-xs font-bold">報表</span>
-          </button>
-          <button onClick={() => setActiveTab('settings')} className={`flex-1 flex flex-col items-center gap-1 transition ${activeTab === 'settings' ? 'text-emerald-600' : 'text-gray-400'}`}>
-            <Settings size={24} /><span className="text-xs font-bold">設定</span>
-          </button>
+        <div 
+          className="mt-auto w-full bg-white border-t border-gray-200 z-20 shrink-0"
+          style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+        >
+          <div className="flex justify-between items-center px-6 h-[60px]">
+            <button onClick={() => setActiveTab('list')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'list' ? 'text-emerald-600' : 'text-gray-400'}`}>
+              <List size={24} />
+              <span className="text-[10px] font-bold">明細</span>
+            </button>
+            <button onClick={() => setActiveTab('report')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'report' ? 'text-emerald-600' : 'text-gray-400'}`}>
+              <PieChart size={24} />
+              <span className="text-[10px] font-bold">報表</span>
+            </button>
+            <button onClick={() => setActiveTab('settings')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'settings' ? 'text-emerald-600' : 'text-gray-400'}`}>
+              <Settings size={24} />
+              <span className="text-[10px] font-bold">設定</span>
+            </button>
+          </div>
         </div>
 
         {/* 新增/編輯支出 Modal */}
