@@ -1226,11 +1226,10 @@ export default function App() {
           </div>
         )}
 
-        {/* 懸浮新增按鈕 (FAB) - 🚀 綁定內聯樣式強制推高，解決掉落重疊問題 */}
+        {/* 懸浮新增按鈕 (FAB) */}
         <button 
           onClick={() => openExpenseModal()} 
-          className="absolute right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-emerald-700 transition-all z-30"
-          style={{ bottom: 'calc(5.5rem + env(safe-area-inset-bottom, 0px))' }}
+          className="absolute right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-emerald-700 transition-all z-30 bottom-safe-fab"
         >
           <Plus size={30} />
         </button>
