@@ -151,7 +151,7 @@ try {
 }
 
 // ==========================================
-// 輔助函式與全域防呆樣式
+// 輔助函式與全域防呆樣式 (徹底解決 iOS Safari 變形問題)
 // ==========================================
 const extractBillingDay = (billingStr) => {
   if (!billingStr || billingStr === '無') return 999;
@@ -169,7 +169,6 @@ const getBillingCycleDates = (viewYear, viewMonthNum, billingDayStr) => {
   return { startStr: formatDate(startDate), endStr: formatDate(endDate), cycleLabel: `${startDate.getMonth()+1}/${startDate.getDate()} ~ ${endDate.getMonth()+1}/${endDate.getDate()}` };
 };
 
-// 🛑 核心防下拉、鎖死背景與 iOS Safari 防跑位樣式
 const GlobalStyles = () => (
   <style dangerouslySetInnerHTML={{__html: `
     html, body, #root {
@@ -177,12 +176,12 @@ const GlobalStyles = () => (
       padding: 0;
       width: 100%;
       height: 100%;
-      overflow: hidden; /* 強制關閉整個網頁的滾動 */
-      overscroll-behavior-y: none; /* 關閉 iOS 彈簧回彈效果 */
+      overflow: hidden; 
+      overscroll-behavior-y: none;
       -webkit-tap-highlight-color: transparent;
     }
     input, textarea, select {
-      font-size: 16px !important; /* 防自動放大 */
+      font-size: 16px !important;
       -webkit-appearance: none;
       -webkit-user-select: text !important;
       user-select: text !important;
@@ -192,6 +191,11 @@ const GlobalStyles = () => (
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+
+    /* 🚀 關鍵修復：用純 CSS 處理動態島與底部安全區，防止 React 行內樣式失效 */
+    .pt-safe { padding-top: max(0.5rem, env(safe-area-inset-top)); }
+    .pb-safe { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
+    .bottom-fab { bottom: calc(4.5rem + max(0.5rem, env(safe-area-inset-bottom))); }
   `}} />
 );
 
@@ -226,32 +230,27 @@ export default function App() {
   const [editingCardKey, setEditingCardKey] = useState(null); 
   const [cardForm, setCardForm] = useState({ name: '', billing: '', limit: '', rewardCycle: 'calendar', rewards: [], iconName: 'CreditCard', color: 'bg-gray-100 text-gray-600' });
 
-  // 帳號登入狀態
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // 新增：Webhook 狀態與測試發送中提示
   const [webhookUrl, setWebhookUrl] = useState('');
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
 
-  // 匯出匯入狀態
   const [importStatus, setImportStatus] = useState('');
   const fileInputRef = useRef(null);
 
-  // 刪除防呆狀態
   const [expenseToDelete, setExpenseToDelete] = useState(null);
   const [showUnusedCards, setShowUnusedCards] = useState(false);
 
   // ==========================================
-  // 🚀 核心修復：解決 iOS 動態島與狀態列白邊問題
+  // 🚀 Meta Tags 優化
   // ==========================================
   useEffect(() => {
     try {
       const isSettings = activeTab === 'settings';
-      const targetColor = isSettings ? '#f9fafb' : '#059669'; // 設定頁灰底，其他頁綠底
+      const targetColor = isSettings ? '#f9fafb' : '#059669'; 
 
-      // 1. 強制加入 viewport-fit=cover，讓畫面真正延伸進動態島
       let viewport = document.querySelector("meta[name=viewport]");
       if (!viewport) {
         viewport = document.createElement("meta");
@@ -262,7 +261,6 @@ export default function App() {
         viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover";
       }
 
-      // 2. 改變狀態列顏色 (PWA 與一般瀏覽器支援)
       let themeColor = document.querySelector("meta[name=theme-color]");
       if (!themeColor) {
         themeColor = document.createElement("meta");
@@ -271,7 +269,6 @@ export default function App() {
       }
       themeColor.content = targetColor;
 
-      // 3. Apple 專屬狀態列樣式 (沉浸式)
       let appleStatusBar = document.querySelector("meta[name=apple-mobile-web-app-status-bar-style]");
       if (!appleStatusBar) {
         appleStatusBar = document.createElement("meta");
@@ -280,14 +277,13 @@ export default function App() {
         document.head.appendChild(appleStatusBar);
       }
 
-      // 4. 強制將網頁最底層顏色鎖定為「純白色」，與底部導覽列完美融合，消除任何突兀的綠色或灰色區塊
-      document.body.style.backgroundColor = '#ffffff';
+      // 確保底層背景不會露出突兀顏色
+      document.body.style.backgroundColor = '#e5e7eb';
     } catch (e) {
       console.warn("無法調整 Meta Tags", e);
     }
   }, [activeTab]);
 
-  // 銀行排序 (現金最前，其餘依結帳日排序)
   const sortedBankNames = useMemo(() => {
     return Object.keys(bankCards).sort((a, b) => {
       if (a === '現金') return -1;
@@ -304,10 +300,8 @@ export default function App() {
     });
   }, [bankCards]);
 
-  // 初始化權限驗證
   useEffect(() => {
     if (!auth) return;
-    
     let initAttempted = false;
 
     const initAuth = async () => {
@@ -395,11 +389,10 @@ export default function App() {
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data.categories) setCategories(data.categories);
-          if (data.webhookUrl) setWebhookUrl(data.webhookUrl); // 讀取 Webhook
+          if (data.webhookUrl) setWebhookUrl(data.webhookUrl);
           
           if (data.bankCards) {
              const migratedBanks = {};
-             
              Object.keys(data.bankCards).forEach(bankName => {
                migratedBanks[bankName] = data.bankCards[bankName].map(card => {
                  const defaultCard = (DEFAULT_BANK_CARDS[bankName] || []).find(c => c.name === card.name);
@@ -414,35 +407,19 @@ export default function App() {
                      if (card.pointEarn) newRewards.push({ id: `p1_${Date.now()}`, name: '基本點數', type: 'points', spend: card.pointSpend || 1, earn: card.pointEarn, unit: card.pointName || '點', limit: card.pointMax || null });
                      if (card.pointBonusEarn) newRewards.push({ id: `p2_${Date.now()}`, name: '加碼點數', type: 'points', spend: card.pointSpend || 1, earn: card.pointBonusEarn, unit: card.pointName || '點', limit: card.pointBonusMax || null });
                    }
-
-                   if (newRewards.length === 0 && defaultCard && defaultCard.rewards) {
-                     newRewards = defaultCard.rewards;
-                   }
+                   if (newRewards.length === 0 && defaultCard && defaultCard.rewards) newRewards = defaultCard.rewards;
                  }
-
-                 return {
-                   ...card,
-                   rewards: newRewards,
-                   iconName: card.iconName || defaultCard?.iconName || 'CreditCard',
-                   color: card.color || defaultCard?.color || 'bg-gray-100 text-gray-600',
-                   rewardCycle: card.rewardCycle || defaultCard?.rewardCycle || 'calendar',
-                   limit: card.limit !== undefined ? card.limit : (defaultCard?.limit || null)
-                 };
+                 return { ...card, rewards: newRewards, iconName: card.iconName || defaultCard?.iconName || 'CreditCard', color: card.color || defaultCard?.color || 'bg-gray-100 text-gray-600', rewardCycle: card.rewardCycle || defaultCard?.rewardCycle || 'calendar', limit: card.limit !== undefined ? card.limit : (defaultCard?.limit || null) };
                });
              });
-
              Object.keys(DEFAULT_BANK_CARDS).forEach(defaultBank => {
-               if (!migratedBanks[defaultBank]) {
-                 migratedBanks[defaultBank] = DEFAULT_BANK_CARDS[defaultBank];
-               } else {
+               if (!migratedBanks[defaultBank]) migratedBanks[defaultBank] = DEFAULT_BANK_CARDS[defaultBank];
+               else {
                  DEFAULT_BANK_CARDS[defaultBank].forEach(defCard => {
-                   if (!migratedBanks[defaultBank].find(c => c.name === defCard.name)) {
-                     migratedBanks[defaultBank].push(defCard);
-                   }
+                   if (!migratedBanks[defaultBank].find(c => c.name === defCard.name)) migratedBanks[defaultBank].push(defCard);
                  });
                }
              });
-
              setBankCards(migratedBanks);
           }
         }
@@ -454,7 +431,6 @@ export default function App() {
     const unsubscribe = onSnapshot(collection(db, 'artifacts', appId, 'users', user.uid, 'expenses'), (snapshot) => {
       const data = [];
       snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
-      
       data.sort((a, b) => {
         const dateDiff = new Date(b.date) - new Date(a.date);
         if (dateDiff !== 0) return dateDiff;
@@ -462,7 +438,6 @@ export default function App() {
         const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return timeB - timeA;
       });
-      
       setExpenses(data);
     });
     return () => unsubscribe();
@@ -470,115 +445,65 @@ export default function App() {
 
   const saveSettingsToCloud = async (newCategories, newBankCards) => {
     if (!user || !db) return;
-    await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'userConfig'), 
-      { categories: newCategories, bankCards: newBankCards, updatedAt: new Date().toISOString() }, { merge: true });
+    await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'userConfig'), { categories: newCategories, bankCards: newBankCards, updatedAt: new Date().toISOString() }, { merge: true });
   };
 
   const { filteredExpenses, totalMonth, bankTotals, cardTotals, estimatedCashback, estimatedPoints, rewardLimitTracking, bankRewards } = useMemo(() => {
-    // 1. 本月明細列表 (單純月曆月，供明細 Tab 使用)
     const filtered = expenses.filter(exp => exp.date.startsWith(currentMonth));
-    let total = 0;
-    filtered.forEach(exp => {
-      total += parseFloat(exp.amount) || 0;
-    });
-
+    let total = 0; filtered.forEach(exp => { total += parseFloat(exp.amount) || 0; });
     const [viewYear, viewMonth] = currentMonth.split('-').map(Number);
     
-    const bnkTotals = {};
-    const crdTotals = {};
-    const tracking = [];
-    let finalCashback = 0;
-    const finalPoints = {};
-    const bRewards = {};
+    const bnkTotals = {}; const crdTotals = {}; const tracking = []; let finalCashback = 0; const finalPoints = {}; const bRewards = {};
 
-    // 初始化各銀行的回饋統計
-    Object.keys(bankCards).forEach(b => {
-      bRewards[b] = { cashback: 0, points: {} };
-    });
+    Object.keys(bankCards).forEach(b => { bRewards[b] = { cashback: 0, points: {} }; });
 
-    // 2. 計算各卡片的「對帳單週期」與「預估回饋」
     Object.entries(bankCards).forEach(([bankName, cards]) => {
       cards.forEach(cardInfo => {
-        
-        // --- A. 對帳單週期計算 ---
         let billStartStr, billEndStr;
         if (cardInfo.billing !== '無') {
           const cycleInfo = getBillingCycleDates(viewYear, viewMonth, cardInfo.billing);
-          if (cycleInfo) {
-            billStartStr = cycleInfo.startStr;
-            billEndStr = cycleInfo.endStr;
-          } else {
-            billStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; 
-            const lastDay = new Date(viewYear, viewMonth, 0).getDate();
-            billEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${lastDay}`; 
-          }
+          if (cycleInfo) { billStartStr = cycleInfo.startStr; billEndStr = cycleInfo.endStr; } 
+          else { billStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; billEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${new Date(viewYear, viewMonth, 0).getDate()}`; }
         } else {
-          billStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; 
-          const lastDay = new Date(viewYear, viewMonth, 0).getDate();
-          billEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${lastDay}`; 
+          billStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; billEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${new Date(viewYear, viewMonth, 0).getDate()}`; 
         }
 
-        // 結算該週期內的消費至對帳單
         expenses.forEach(exp => {
           if (exp.bank === bankName && exp.card === cardInfo.name && exp.date >= billStartStr && exp.date <= billEndStr) {
             const amt = parseFloat(exp.amount) || 0;
-            bnkTotals[bankName] = (bnkTotals[bankName] || 0) + amt;
-            crdTotals[cardInfo.name] = (crdTotals[cardInfo.name] || 0) + amt;
+            bnkTotals[bankName] = (bnkTotals[bankName] || 0) + amt; crdTotals[cardInfo.name] = (crdTotals[cardInfo.name] || 0) + amt;
           }
         });
 
-        // --- B. 回饋週期計算 ---
         if (!cardInfo.rewards || cardInfo.rewards.length === 0) return;
 
         let rewardStartStr, rewardEndStr, label;
         if (cardInfo.rewardCycle === 'billing' && cardInfo.billing !== '無') {
           const cycleInfo = getBillingCycleDates(viewYear, viewMonth, cardInfo.billing);
-          if (cycleInfo) { 
-            rewardStartStr = cycleInfo.startStr; 
-            rewardEndStr = cycleInfo.endStr; 
-            label = `結帳週期 (${cycleInfo.cycleLabel})`; 
-          } else { 
-            rewardStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; 
-            const lastDay = new Date(viewYear, viewMonth, 0).getDate();
-            rewardEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${lastDay}`; 
-            label = '月曆月'; 
-          }
+          if (cycleInfo) { rewardStartStr = cycleInfo.startStr; rewardEndStr = cycleInfo.endStr; label = `結帳週期 (${cycleInfo.cycleLabel})`; } 
+          else { rewardStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; rewardEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${new Date(viewYear, viewMonth, 0).getDate()}`; label = '月曆月'; }
         } else {
-          rewardStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; 
-          const lastDay = new Date(viewYear, viewMonth, 0).getDate();
-          rewardEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${lastDay}`; 
-          label = '月曆月';
+          rewardStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; rewardEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${new Date(viewYear, viewMonth, 0).getDate()}`; label = '月曆月';
         }
 
-        // 依據規則統計回饋
         cardInfo.rewards.forEach(rule => {
           let cycleSpent = 0;
           expenses.forEach(exp => {
             if (exp.bank === bankName && exp.card === cardInfo.name && exp.date >= rewardStartStr && exp.date <= rewardEndStr) {
-              if (exp.appliedRewards && exp.appliedRewards.includes(rule.id)) {
-                cycleSpent += (parseFloat(exp.amount) || 0);
-              }
+              if (exp.appliedRewards && exp.appliedRewards.includes(rule.id)) cycleSpent += (parseFloat(exp.amount) || 0);
             }
           });
-
-          if (rule.limit) {
-            tracking.push({ cardName: cardInfo.name, ruleName: rule.name, spent: cycleSpent, limit: rule.limit, cycleLabel: label });
-          }
-
+          if (rule.limit) tracking.push({ cardName: cardInfo.name, ruleName: rule.name, spent: cycleSpent, limit: rule.limit, cycleLabel: label });
           let cappedSpent = rule.limit ? Math.min(cycleSpent, rule.limit) : cycleSpent;
 
           if (cappedSpent > 0) {
             if (rule.type === 'cashback') {
               const earnCash = cappedSpent * ((parseFloat(rule.rate) || 0) / 100);
-              finalCashback += earnCash;
-              bRewards[bankName].cashback += earnCash;
+              finalCashback += earnCash; bRewards[bankName].cashback += earnCash;
             } else if (rule.type === 'points') {
-              let spendReq = parseFloat(rule.spend) || 1;
-              let earnAmt = parseFloat(rule.earn) || 0;
-              let earned = Math.floor(cappedSpent / spendReq) * earnAmt; // 確保單筆與週期加總的邏輯正確
+              let earned = Math.floor(cappedSpent / (parseFloat(rule.spend) || 1)) * (parseFloat(rule.earn) || 0);
               let unit = rule.unit || '點';
               finalPoints[unit] = (finalPoints[unit] || 0) + earned;
-              
               if (!bRewards[bankName].points[unit]) bRewards[bankName].points[unit] = 0;
               bRewards[bankName].points[unit] += earned;
             }
@@ -587,25 +512,21 @@ export default function App() {
       });
     });
 
-    // 處理已被刪除或沒設定的卡片 (防呆：以月曆月加總)
     filtered.forEach(exp => {
       const cardInfo = (bankCards[exp.bank] || []).find(c => c.name === exp.card);
       if (!cardInfo) {
         const amt = parseFloat(exp.amount) || 0;
-        bnkTotals[exp.bank] = (bnkTotals[exp.bank] || 0) + amt;
-        crdTotals[exp.card] = (crdTotals[exp.card] || 0) + amt;
+        bnkTotals[exp.bank] = (bnkTotals[exp.bank] || 0) + amt; crdTotals[exp.card] = (crdTotals[exp.card] || 0) + amt;
       }
     });
 
     return { 
       filteredExpenses: filtered, totalMonth: total, 
       bankTotals: Object.entries(bnkTotals).sort((a, b) => {
-        if (a[0] === '現金') return -1;
-        if (b[0] === '現金') return 1;
+        if (a[0] === '現金') return -1; if (b[0] === '現金') return 1;
         const dayA = extractBillingDay(bankCards[a[0]]?.[0]?.billing);
         const dayB = extractBillingDay(bankCards[b[0]]?.[0]?.billing);
-        if (dayA !== dayB) return dayA - dayB;
-        return b[1] - a[1];
+        if (dayA !== dayB) return dayA - dayB; return b[1] - a[1];
       }).filter(entry => entry[1] > 0 || (bankCards[entry[0]] && bankCards[entry[0]].length > 0)), 
       cardTotals: crdTotals,
       estimatedCashback: Math.round(finalCashback), estimatedPoints: Object.entries(finalPoints).map(([u, p]) => [u, Math.round(p)]),
@@ -632,7 +553,6 @@ export default function App() {
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     let newFormData = { ...formData, [name]: value };
-    
     if (name === 'bank' && bankCards[value]) {
       const firstCard = bankCards[value][0];
       newFormData.card = firstCard?.name || ''; newFormData.billingDate = firstCard?.billing || '無';
@@ -640,10 +560,7 @@ export default function App() {
     }
     if (name === 'card') {
       const cardInfo = bankCards[formData.bank]?.find(c => c.name === value);
-      if (cardInfo) {
-        newFormData.billingDate = cardInfo.billing;
-        newFormData.appliedRewards = (cardInfo.rewards?.length > 0) ? [cardInfo.rewards[0].id] : [];
-      }
+      if (cardInfo) { newFormData.billingDate = cardInfo.billing; newFormData.appliedRewards = (cardInfo.rewards?.length > 0) ? [cardInfo.rewards[0].id] : []; }
     }
     setFormData(newFormData);
   };
@@ -651,12 +568,7 @@ export default function App() {
   const toggleRewardRule = (ruleId) => {
     setFormData(prev => {
       const current = prev.appliedRewards || [];
-      return {
-        ...prev,
-        appliedRewards: current.includes(ruleId) 
-          ? current.filter(id => id !== ruleId) 
-          : [...current, ruleId]
-      };
+      return { ...prev, appliedRewards: current.includes(ruleId) ? current.filter(id => id !== ruleId) : [...current, ruleId] };
     });
   };
 
@@ -675,12 +587,7 @@ export default function App() {
       });
     } else {
       setEditingExpenseId(null);
-      setFormData(prev => ({
-        ...prev,
-        date: new Date().toISOString().slice(0, 10),
-        amount: '',
-        description: '',
-      }));
+      setFormData(prev => ({ ...prev, date: new Date().toISOString().slice(0, 10), amount: '', description: '' }));
     }
     setIsModalOpen(true);
   };
@@ -688,14 +595,8 @@ export default function App() {
   const handleSaveExpense = async (e) => {
     e.preventDefault();
     if (!user || !formData.amount || !formData.description) return;
-    
     try {
-      const expenseData = {
-        ...formData,
-        amount: parseFloat(formData.amount),
-        updatedAt: new Date().toISOString()
-      };
-
+      const expenseData = { ...formData, amount: parseFloat(formData.amount), updatedAt: new Date().toISOString() };
       if (editingExpenseId) {
         const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'expenses', editingExpenseId);
         await updateDoc(docRef, expenseData);
@@ -703,10 +604,8 @@ export default function App() {
         expenseData.createdAt = new Date().toISOString();
         await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'expenses'), expenseData);
         
-        // 🚀 新增：觸發自動化 Webhook 備份至 Google Sheets (背景發送，不阻擋畫面)
         if (webhookUrl && webhookUrl.trim().startsWith('http')) {
           try {
-            // 將內部 ID 轉換為中文回饋名稱，讓 Google Sheets 顯示人類看得懂的文字
             const cardInfo = (bankCards[expenseData.bank] || []).find(c => c.name === expenseData.card);
             let rewardTexts = [];
             if (cardInfo && cardInfo.rewards && expenseData.appliedRewards) {
@@ -717,38 +616,19 @@ export default function App() {
                 }
               });
             }
-
             const payload = {
-              date: expenseData.date,
-              category: expenseData.category,
-              description: expenseData.description,
-              amount: expenseData.amount,
-              bank: expenseData.bank,
-              card: expenseData.card,
-              billingDate: expenseData.billingDate,
+              date: expenseData.date, category: expenseData.category, description: expenseData.description,
+              amount: expenseData.amount, bank: expenseData.bank, card: expenseData.card, billingDate: expenseData.billingDate,
               rewardDetails: rewardTexts.length > 0 ? rewardTexts.join('、') : '無'
             };
-
-            fetch(webhookUrl.trim(), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            }).then(res => {
-              if(!res.ok) console.warn("Webhook 回應狀態碼異常:", res.status);
-            }).catch(err => {
-              console.error('Webhook 網路錯誤 (可能為 CORS 或無網路):', err);
-            });
-          } catch (err) {
-            console.error('Webhook 發送例外錯誤:', err);
-          }
+            fetch(webhookUrl.trim(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+              .then(res => { if(!res.ok) console.warn("Webhook Error:", res.status); })
+              .catch(err => { console.error('Webhook Error:', err); });
+          } catch (err) { console.error('Webhook payload error:', err); }
         }
       }
-      
-      setIsModalOpen(false);
-      setEditingExpenseId(null);
-    } catch (error) {
-      console.error("Error saving expense: ", error);
-    }
+      setIsModalOpen(false); setEditingExpenseId(null);
+    } catch (error) { console.error("Error saving expense: ", error); }
   };
 
   const executeDelete = async (id) => { 
@@ -757,9 +637,7 @@ export default function App() {
         const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'expenses', id);
         await deleteDoc(docRef); 
         setExpenseToDelete(null); 
-    } catch (error) {
-        console.error("Error deleting document: ", error);
-    }
+    } catch (error) { console.error("Error deleting document: ", error); }
   };
 
   const getCategoryStyle = (catName) => {
@@ -771,47 +649,33 @@ export default function App() {
     setEditingCardKey(index === -1 ? `new-${bankName}` : `${bankName}-${index}`);
     setCardForm({
       name: cardData?.name || '', billing: cardData?.billing || '無', limit: cardData?.limit || '',
-      rewardCycle: cardData?.rewardCycle || 'calendar',
-      rewards: cardData?.rewards || [],
-      iconName: cardData?.iconName || 'CreditCard',
-      color: cardData?.color || 'bg-gray-100 text-gray-600'
+      rewardCycle: cardData?.rewardCycle || 'calendar', rewards: cardData?.rewards || [],
+      iconName: cardData?.iconName || 'CreditCard', color: cardData?.color || 'bg-gray-100 text-gray-600'
     });
   };
 
   const addRewardRuleToForm = (type) => {
-    const newRule = type === 'cashback' 
-      ? { id: `rule-${Date.now()}`, name: '', type: 'cashback', rate: '', limit: '' }
-      : { id: `rule-${Date.now()}`, name: '', type: 'points', spend: '', earn: '', unit: '點', limit: '' };
+    const newRule = type === 'cashback' ? { id: `rule-${Date.now()}`, name: '', type: 'cashback', rate: '', limit: '' } : { id: `rule-${Date.now()}`, name: '', type: 'points', spend: '', earn: '', unit: '點', limit: '' };
     setCardForm(prev => ({ ...prev, rewards: [...prev.rewards, newRule] }));
   };
-
   const updateRewardRuleInForm = (idx, field, value) => {
-    const newRewards = [...cardForm.rewards];
-    newRewards[idx][field] = value;
-    setCardForm(prev => ({ ...prev, rewards: newRewards }));
+    const newRewards = [...cardForm.rewards]; newRewards[idx][field] = value; setCardForm(prev => ({ ...prev, rewards: newRewards }));
   };
-
   const removeRewardRuleFromForm = (idx) => {
-    const newRewards = [...cardForm.rewards];
-    newRewards.splice(idx, 1);
-    setCardForm(prev => ({ ...prev, rewards: newRewards }));
+    const newRewards = [...cardForm.rewards]; newRewards.splice(idx, 1); setCardForm(prev => ({ ...prev, rewards: newRewards }));
   };
 
   const saveCardForm = (bankName, index) => {
     if (!cardForm.name.trim()) return;
     const valOrNull = (val) => val ? parseFloat(val) : null;
-    
     const cleanRewards = cardForm.rewards.map(r => ({
       id: r.id, name: r.name.trim() || '未命名', type: r.type, limit: valOrNull(r.limit),
       ...(r.type === 'cashback' ? { rate: valOrNull(r.rate) || 0 } : { spend: valOrNull(r.spend) || 1, earn: valOrNull(r.earn) || 0, unit: (r.unit || '').trim() || '點' })
     }));
-
     const cardData = { 
-      name: cardForm.name.trim(), billing: (cardForm.billing || '').trim() || '無', 
-      limit: valOrNull(cardForm.limit), rewardCycle: cardForm.rewardCycle, rewards: cleanRewards,
+      name: cardForm.name.trim(), billing: (cardForm.billing || '').trim() || '無', limit: valOrNull(cardForm.limit), rewardCycle: cardForm.rewardCycle, rewards: cleanRewards,
       iconName: cardForm.iconName || 'CreditCard', color: cardForm.color || 'bg-gray-100 text-gray-600'
     };
-
     const updated = { ...bankCards };
     if (!updated[bankName]) updated[bankName] = [];
     if (index === -1) updated[bankName].push(cardData); else updated[bankName][index] = cardData;
@@ -826,8 +690,7 @@ export default function App() {
   const handlePickerSave = (selectedIcon, selectedColor) => {
     if (pickerConfig.type === 'category') {
       const newCats = categories.map(c => c.id === pickerConfig.id ? { ...c, iconName: selectedIcon, color: selectedColor } : c);
-      setCategories(newCats);
-      saveSettingsToCloud(newCats, bankCards);
+      setCategories(newCats); saveSettingsToCloud(newCats, bankCards);
     } else if (pickerConfig.type === 'cardForm') {
       setCardForm({ ...cardForm, iconName: selectedIcon, color: selectedColor });
     }
@@ -839,118 +702,52 @@ export default function App() {
     const csvContent = [
       headers.join(','),
       ...expenses.map(e => {
-        let rTexts = [];
-        const cInfo = (bankCards[e.bank] || []).find(c => c.name === e.card);
-        if (cInfo && cInfo.rewards && e.appliedRewards) {
-          cInfo.rewards.forEach(r => {
-            if (e.appliedRewards.includes(r.id)) {
-              rTexts.push(r.type === 'cashback' ? `${r.name} ${r.rate}%` : `${r.name} ${r.earn}${r.unit}`);
-            }
-          });
-        }
-        return [
-          e.date,
-          e.category,
-          `"${(e.description || '').replace(/"/g, '""')}"`,
-          e.amount,
-          e.bank,
-          e.card,
-          e.billingDate,
-          `"${rTexts.join('、')}"`
-        ].join(',')
+        let rTexts = []; const cInfo = (bankCards[e.bank] || []).find(c => c.name === e.card);
+        if (cInfo && cInfo.rewards && e.appliedRewards) { cInfo.rewards.forEach(r => { if (e.appliedRewards.includes(r.id)) { rTexts.push(r.type === 'cashback' ? `${r.name} ${r.rate}%` : `${r.name} ${r.earn}${r.unit}`); } }); }
+        return [ e.date, e.category, `"${(e.description || '').replace(/"/g, '""')}"`, e.amount, e.bank, e.card, e.billingDate, `"${rTexts.join('、')}"` ].join(',')
       })
     ].join('\n');
-
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `記帳資料_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const url = URL.createObjectURL(blob); const link = document.createElement('a');
+    link.setAttribute('href', url); link.setAttribute('download', `記帳資料_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
   const handleImportCSV = async (event) => {
     const file = event.target.files[0];
     if (!file || !user) return;
     setImportStatus('匯入中...');
-
     const reader = new FileReader();
     reader.onload = async (e) => {
-      const text = e.target.result;
-      const rows = text.split('\n').filter(row => row.trim() !== '');
-      
-      if (rows.length <= 1) {
-        setImportStatus('檔案中沒有資料行！');
-        return;
-      }
-
-      let successCount = 0;
-      let errorCount = 0;
-      let skippedCount = 0; // 新增：重複略過計數
-
-      // 建立現有資料的「特徵指紋」，防止重複匯入相同的紀錄
-      const existingSignatures = new Set(
-        expenses.map(exp => `${exp.date}-${exp.category}-${exp.description}-${exp.amount}-${exp.bank}-${exp.card}`)
-      );
+      const text = e.target.result; const rows = text.split('\n').filter(row => row.trim() !== '');
+      if (rows.length <= 1) { setImportStatus('檔案中沒有資料行！'); return; }
+      let successCount = 0; let errorCount = 0; let skippedCount = 0; 
+      const existingSignatures = new Set( expenses.map(exp => `${exp.date}-${exp.category}-${exp.description}-${exp.amount}-${exp.bank}-${exp.card}`) );
 
       for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.replace(/^"|"$/g, '').trim());
-
+        const row = rows[i]; const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.replace(/^"|"$/g, '').trim());
         if (cols.length >= 4) {
-          const dateStr = cols[0];
-          const amount = parseFloat(cols[3]);
-          
+          const dateStr = cols[0]; const amount = parseFloat(cols[3]);
           let parsedDate = new Date();
           if (dateStr.includes('/')) {
              const parts = dateStr.split('/');
              if(parts[0].length === 4) parsedDate = new Date(parts[0], parts[1]-1, parts[2]);
              else if (parts.length === 2) parsedDate = new Date(new Date().getFullYear(), parts[0]-1, parts[1]);
-          } else if (dateStr.includes('-')) {
-             parsedDate = new Date(dateStr);
-          }
+          } else if (dateStr.includes('-')) { parsedDate = new Date(dateStr); }
 
           if (!isNaN(amount) && amount > 0) {
             const dateFmt = parsedDate.toISOString().slice(0, 10);
-            const categoryFmt = cols[1] || '其他';
-            const descFmt = cols[2] || '未命名項目';
-            const bankFmt = cols[4] || '現金';
-            const cardFmt = cols[5] || '現金';
-            
+            const categoryFmt = cols[1] || '其他'; const descFmt = cols[2] || '未命名項目'; const bankFmt = cols[4] || '現金'; const cardFmt = cols[5] || '現金';
             const signature = `${dateFmt}-${categoryFmt}-${descFmt}-${amount}-${bankFmt}-${cardFmt}`;
 
-            if (existingSignatures.has(signature)) {
-              skippedCount++;
-              continue; // 發現特徵完全相同的紀錄，略過不匯入
-            }
-
+            if (existingSignatures.has(signature)) { skippedCount++; continue; }
             try {
-              const expenseData = {
-                date: dateFmt,
-                category: categoryFmt,
-                description: descFmt,
-                amount: amount,
-                bank: bankFmt,
-                card: cardFmt,
-                billingDate: cols[6] || '無',
-                appliedRewards: [], 
-                createdAt: new Date().toISOString()
-              };
+              const expenseData = { date: dateFmt, category: categoryFmt, description: descFmt, amount: amount, bank: bankFmt, card: cardFmt, billingDate: cols[6] || '無', appliedRewards: [], createdAt: new Date().toISOString() };
               await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'expenses'), expenseData);
-              existingSignatures.add(signature); // 把剛新增的指紋也加入，防止 CSV 內部自己就有重複
-              successCount++;
-            } catch (err) {
-              console.error('Error importing row:', row, err);
-              errorCount++;
-            }
-          } else {
-             errorCount++;
-          }
-        } else {
-           errorCount++;
-        }
+              existingSignatures.add(signature); successCount++;
+            } catch (err) { console.error('Error importing row:', row, err); errorCount++; }
+          } else { errorCount++; }
+        } else { errorCount++; }
       }
       setImportStatus(`匯入完成！新增：${successCount}，重複略過：${skippedCount}，失敗：${errorCount}。`);
       if(fileInputRef.current) fileInputRef.current.value = '';
@@ -958,60 +755,31 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  // 全固定外觀：Loading
-  if (isLoading && !user) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-gray-50 text-emerald-600">
-        <GlobalStyles />
-        <Loader2 className="animate-spin mr-2" size={20} /> 載入中...
-      </div>
-    );
-  }
+  // ==========================================
+  // UI 渲染 (全固定版面)
+  // ==========================================
+  if (isLoading && !user) return <div className="fixed inset-0 flex items-center justify-center bg-gray-50 text-emerald-600"><GlobalStyles /><Loader2 className="animate-spin mr-2" size={20} /> 載入中...</div>;
 
-  // 全固定外觀：Login
   if (!user) {
     return (
-      <div className="fixed inset-0 bg-gray-200 flex justify-center items-center font-sans p-4" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+      <div className="fixed inset-0 bg-gray-200 flex justify-center items-center font-sans p-4 pt-safe pb-safe">
         <GlobalStyles />
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 space-y-6 overflow-y-auto max-h-full">
           <div className="text-center">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Wallet size={32} />
-            </div>
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4"><Wallet size={32} /></div>
             <h1 className="text-2xl font-bold text-gray-800">雲端記帳小幫手</h1>
             <p className="text-sm text-gray-500 mt-2">Create by Cy</p>
           </div>
-
-          {authError && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm text-center border border-red-200">
-              {authError}
-            </div>
-          )}
-
+          {authError && <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm text-center border border-red-200">{authError}</div>}
           <form onSubmit={(e) => handleAuthSubmit(e, false)} className="space-y-4">
             <div>
               <label className="text-sm font-bold text-gray-700 block mb-1">電子郵件 Email</label>
-              <input 
-                type="email" 
-                value={authEmail} 
-                onChange={(e) => setAuthEmail(e.target.value)} 
-                required 
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition"
-                placeholder="your@email.com"
-              />
+              <input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} required className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition" placeholder="your@email.com"/>
             </div>
             <div>
               <label className="text-sm font-bold text-gray-700 block mb-1">密碼 Password</label>
-              <input 
-                type="password" 
-                value={authPassword} 
-                onChange={(e) => setAuthPassword(e.target.value)} 
-                required 
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition"
-                placeholder="請輸入至少6位數密碼"
-              />
+              <input type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} required className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition" placeholder="請輸入至少6位數密碼"/>
             </div>
-            
             <div className="flex gap-2 pt-2">
                <button type="button" onClick={(e) => handleAuthSubmit(e, false)} disabled={!authEmail || !authPassword} className="flex-1 bg-indigo-100 text-indigo-700 py-3 rounded-xl text-sm font-bold hover:bg-indigo-200 transition disabled:opacity-50">登入帳號</button>
                <button type="button" onClick={(e) => handleAuthSubmit(e, true)} disabled={!authEmail || !authPassword} className="flex-1 bg-indigo-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-indigo-700 transition disabled:opacity-50">註冊並綁定</button>
@@ -1022,15 +790,7 @@ export default function App() {
     );
   }
 
-  // 全固定外觀：Settings Loading
-  if (isLoading || !settingsLoaded) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-gray-50 text-emerald-600 relative overflow-hidden">
-        <GlobalStyles />
-        <Loader2 className="animate-spin mr-2" size={20} /> 讀取資料中...
-      </div>
-    );
-  }
+  if (isLoading || !settingsLoaded) return <div className="fixed inset-0 flex items-center justify-center bg-gray-50 text-emerald-600 relative overflow-hidden"><GlobalStyles /><Loader2 className="animate-spin mr-2" size={20} /> 讀取資料中...</div>;
 
   return (
     <div className="fixed inset-0 bg-gray-200 flex justify-center font-sans overflow-hidden">
@@ -1041,17 +801,10 @@ export default function App() {
         
         {/* [固定] 頂部標題 Header */}
         {activeTab !== 'settings' ? (
-          <header 
-            className="bg-emerald-600 text-white pb-3 px-6 rounded-b-[2rem] shadow-md z-10 shrink-0"
-            style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}
-          >
-            <div className="flex items-center justify-between bg-emerald-700/50 rounded-2xl p-1 mb-4 mt-1">
+          <header className="bg-emerald-600 text-white pt-safe pb-3 px-5 rounded-b-[2rem] shadow-md z-10 shrink-0">
+            <div className="flex items-center justify-between bg-emerald-700/50 rounded-2xl p-1 mb-3 mt-1">
               <button onClick={() => { const [y, m] = currentMonth.split('-').map(Number); setCurrentMonth(`${new Date(y, m - 2, 1).getFullYear()}-${String(new Date(y, m - 2, 1).getMonth() + 1).padStart(2, '0')}`); }} className="p-2 hover:bg-emerald-800 rounded-xl transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
-              <div 
-                className="font-semibold text-lg flex items-center gap-2 cursor-pointer hover:text-emerald-200 transition"
-                onClick={handleJumpToCurrentMonth}
-                title="回到本月"
-              >
+              <div className="font-semibold text-lg flex items-center gap-2 cursor-pointer hover:text-emerald-200 transition" onClick={handleJumpToCurrentMonth}>
                 <Calendar size={18} />{currentMonth.replace('-', '年')}月
               </div>
               <button onClick={() => { const [y, m] = currentMonth.split('-').map(Number); setCurrentMonth(`${new Date(y, m, 1).getFullYear()}-${String(new Date(y, m, 1).getMonth() + 1).padStart(2, '0')}`); }} className="p-2 hover:bg-emerald-800 rounded-xl transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg></button>
@@ -1062,26 +815,20 @@ export default function App() {
             </div>
           </header>
         ) : (
-          <header 
-            className="bg-gray-50 pb-3 px-6 z-10 shrink-0 border-b border-gray-200 shadow-sm"
-            style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}
-          >
-            <div className="flex justify-between items-center px-2">
+          <header className="bg-gray-50 pt-safe pb-3 px-6 z-10 shrink-0 border-b border-gray-200 shadow-sm">
+            <div className="flex justify-between items-center px-2 mt-1">
               <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
-              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.1.2 (iOS完美底部)</span>
+              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.1.3 (純白底部版)</span>
             </div>
           </header>
         )}
 
-        {/* [獨立滑動] 中間內容區塊 (完美控制滾動不透底) */}
-        <main 
-          className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 custom-scrollbar z-0"
-          style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
-        >
+        {/* [獨立滑動] 中間內容區塊 */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 custom-scrollbar z-0 relative">
           
           {/* == 明細頁 == */}
           {activeTab === 'list' && (
-            <div className="space-y-3">
+            <div className="space-y-3 pb-4">
               {filteredExpenses.length === 0 ? (
                 <div className="text-center text-gray-400 mt-20 flex flex-col items-center">
                   <List size={48} className="mb-4 opacity-50" />
@@ -1106,17 +853,12 @@ export default function App() {
                   const cardTextColor = cardInfo?.color?.split(' ').find(c => c.startsWith('text-')) || 'text-gray-500';
 
                   return (
-                    <div 
-                      key={expense.id} 
-                      className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 group transition hover:border-emerald-300 relative"
-                    >
+                    <div key={expense.id} className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 group transition hover:border-emerald-300 relative">
                       <div className="flex flex-col items-center justify-center shrink-0 w-12 bg-gray-50 h-12 rounded-xl">
                         <span className="text-gray-400 text-[10px] uppercase font-bold leading-none">{expense.date.substring(5, 7)}月</span>
                         <span className="text-emerald-700 text-xl font-black leading-tight mt-0.5">{expense.date.substring(8, 10)}</span>
                       </div>
-
                       <div className="w-[1px] h-10 bg-gray-100 shrink-0"></div>
-
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${color}`}><Icon size={20} /></div>
                       <div className="flex-1 min-w-0 flex flex-col justify-center">
                         <p className="font-bold text-gray-800 truncate leading-snug">{expense.description}</p>
@@ -1125,19 +867,15 @@ export default function App() {
                             <CardIcon size={12} className={cardTextColor} />
                             <span className="truncate max-w-[120px]">{expense.bank}({expense.card})</span>
                           </span>
-                          
                           {appliedBadges.length > 0 && (
                             <div className="flex flex-wrap gap-1">
                               {appliedBadges.map((badge, idx) => (
-                                 <span key={idx} className="bg-orange-100 text-orange-700 px-1.5 py-[1px] rounded text-[9px] whitespace-nowrap font-semibold">
-                                   {badge}
-                                 </span>
+                                 <span key={idx} className="bg-orange-100 text-orange-700 px-1.5 py-[1px] rounded text-[9px] whitespace-nowrap font-semibold">{badge}</span>
                               ))}
                             </div>
                           )}
                         </div>
                       </div>
-                      
                       <div className="flex flex-col items-end gap-1 shrink-0 ml-1">
                         <span className="font-bold text-lg text-gray-800 font-mono">-${expense.amount}</span>
                         <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition absolute right-3 bottom-2 md:relative md:right-auto md:bottom-auto md:mt-2">
@@ -1154,8 +892,7 @@ export default function App() {
 
           {/* == 報表頁 == */}
           {activeTab === 'report' && (
-            <div className="space-y-6">
-
+            <div className="space-y-6 pb-4">
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                 <h3 className="text-gray-500 font-semibold mb-4 flex items-center gap-2"><AlertCircle size={18} />各卡額度與回饋狀態</h3>
                 <div className="space-y-5">
@@ -1166,23 +903,14 @@ export default function App() {
                       return hasCreditLimit || hasRewardLimit;
                     }).sort((a, b) => extractBillingDay(a.billing) - extractBillingDay(b.billing));
 
-                    if (cardsToTrack.length === 0) {
-                      return <p className="text-sm text-gray-400 text-center py-2">尚無需要追蹤的額度或回饋</p>;
-                    }
+                    if (cardsToTrack.length === 0) return <p className="text-sm text-gray-400 text-center py-2">尚無需要追蹤的額度或回饋</p>;
 
-                    const usedCards = [];
-                    const unusedCards = [];
-
+                    const usedCards = []; const unusedCards = [];
                     cardsToTrack.forEach(card => {
                       const cardTracking = rewardLimitTracking.filter(t => t.cardName === card.name);
                       const usedAmount = cardTotals[card.name] || 0;
                       const hasTrackingSpent = cardTracking.some(t => t.spent > 0);
-                      
-                      if (usedAmount > 0 || hasTrackingSpent) {
-                        usedCards.push(card);
-                      } else {
-                        unusedCards.push(card);
-                      }
+                      if (usedAmount > 0 || hasTrackingSpent) usedCards.push(card); else unusedCards.push(card);
                     });
 
                     const renderCard = (card) => {
@@ -1251,20 +979,12 @@ export default function App() {
                       <>
                         {usedCards.length === 0 && <p className="text-sm text-gray-400 text-center py-2">本月尚無刷卡紀錄</p>}
                         {usedCards.map(renderCard)}
-                        
                         {unusedCards.length > 0 && (
                           <div className="mt-2 pt-2">
-                            <button 
-                              onClick={() => setShowUnusedCards(!showUnusedCards)}
-                              className="w-full text-center text-gray-400 text-xs py-2 hover:bg-gray-50 rounded-xl transition flex items-center justify-center gap-1 border border-dashed border-gray-200"
-                            >
+                            <button onClick={() => setShowUnusedCards(!showUnusedCards)} className="w-full text-center text-gray-400 text-xs py-2 hover:bg-gray-50 rounded-xl transition flex items-center justify-center gap-1 border border-dashed border-gray-200">
                               {showUnusedCards ? '▲ 隱藏未刷卡片' : `▼ 展開未刷卡片 (${unusedCards.length})`}
                             </button>
-                            {showUnusedCards && (
-                              <div className="mt-4 space-y-5 opacity-75 transition-all">
-                                {unusedCards.map(renderCard)}
-                              </div>
-                            )}
+                            {showUnusedCards && <div className="mt-4 space-y-5 opacity-75 transition-all">{unusedCards.map(renderCard)}</div>}
                           </div>
                         )}
                       </>
@@ -1281,7 +1001,7 @@ export default function App() {
                     const firstCard = bankCards[bankName]?.[0];
                     const BankIcon = ICON_MAP[firstCard?.iconName] || CreditCard;
                     const bColor = firstCard?.color || 'bg-gray-100 text-gray-600';
-                    const rewards = bankRewards[bankName]; // 抓取該銀行產生的回饋
+                    const rewards = bankRewards[bankName];
                     
                     return (
                       <div key={bankName} className="flex flex-col p-3 bg-gray-50 rounded-xl border border-transparent hover:border-gray-200 transition">
@@ -1290,28 +1010,16 @@ export default function App() {
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${bColor}`}><BankIcon size={14} /></div>
                             <div className="flex flex-col">
                               <span className="font-bold text-gray-700">{bankName}</span>
-                              {firstCard?.billing && firstCard.billing !== '無' && (
-                                <span className="text-[10px] text-gray-400">結帳日: {firstCard.billing}</span>
-                              )}
+                              {firstCard?.billing && firstCard.billing !== '無' && <span className="text-[10px] text-gray-400">結帳日: {firstCard.billing}</span>}
                             </div>
                           </div>
                           <span className="font-mono font-bold text-gray-800 text-lg">${amount.toLocaleString()}</span>
                         </div>
-                        
-                        {/* 若該銀行有產生回饋，顯示在對帳金額下方 */}
                         {rewards && (rewards.cashback > 0 || Object.keys(rewards.points).length > 0) && (
                           <div className="flex flex-wrap items-center gap-2 pt-2 mt-2 border-t border-gray-200/60">
                             <span className="text-[11px] font-bold text-yellow-600 flex items-center gap-1"><Gift size={12} />本期預估賺取:</span>
-                            {rewards.cashback > 0 && (
-                              <span className="text-[11px] font-bold text-emerald-600 bg-emerald-100/50 px-1.5 py-0.5 rounded shadow-sm">
-                                ${Math.round(rewards.cashback)} 現金回饋
-                              </span>
-                            )}
-                            {Object.entries(rewards.points).map(([unit, pts]) => (
-                              <span key={unit} className="text-[11px] font-bold text-indigo-600 bg-indigo-100/50 px-1.5 py-0.5 rounded shadow-sm">
-                                {pts} {unit}
-                              </span>
-                            ))}
+                            {rewards.cashback > 0 && <span className="text-[11px] font-bold text-emerald-600 bg-emerald-100/50 px-1.5 py-0.5 rounded shadow-sm">${Math.round(rewards.cashback)} 現金回饋</span>}
+                            {Object.entries(rewards.points).map(([unit, pts]) => <span key={unit} className="text-[11px] font-bold text-indigo-600 bg-indigo-100/50 px-1.5 py-0.5 rounded shadow-sm">{pts} {unit}</span>)}
                           </div>
                         )}
                       </div>
@@ -1325,79 +1033,39 @@ export default function App() {
 
           {/* == 設定頁 == */}
           {activeTab === 'settings' && (
-            <div className="space-y-6 pt-2 px-2">
-              
-              {/* === 帳號與雲端同步區塊 === */}
+            <div className="space-y-6 pb-4">
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                 <h3 className="text-gray-700 font-bold flex items-center gap-2 mb-4"><UserCircle size={18} className="text-indigo-500" />帳號與雲端同步</h3>
-                
                 {user && !user.isAnonymous ? (
                    <div className="flex flex-col gap-3">
-                     <div className="bg-indigo-50 text-indigo-800 p-3 rounded-xl text-sm border border-indigo-100">
-                        目前登入帳號：<br/><span className="font-bold text-base">{user.email}</span>
-                     </div>
-                     
+                     <div className="bg-indigo-50 text-indigo-800 p-3 rounded-xl text-sm border border-indigo-100">目前登入帳號：<br/><span className="font-bold text-base">{user.email}</span></div>
                      <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs mt-1">
-                       <p className="text-gray-700 font-bold mb-1 flex items-center gap-1"><Zap size={14} className="text-yellow-500" /> 自動化備份至 Google Sheets (Webhook)</p>
-                       <p className="text-[10px] text-gray-500 mb-2 leading-relaxed">請將 Make.com 或 Zapier 的 Webhook 網址貼在下方，新增支出時將會自動拋送資料給系統。</p>
-                       <p className="text-[10px] text-emerald-600 mb-2 font-bold">💡 測試前，請先在 Make.com 點擊左下角的「Run once (執行一次)」進入監聽狀態。</p>
+                       <p className="text-gray-700 font-bold mb-1 flex items-center gap-1"><Zap size={14} className="text-yellow-500" /> 自動化備份至 Webhook</p>
+                       <p className="text-[10px] text-gray-500 mb-2 leading-relaxed">請將 Webhook 網址貼在下方，新增支出時將會自動拋送資料給系統。</p>
                        <div className="flex gap-2">
-                         <input 
-                           type="url" 
-                           placeholder="https://hook.us1.make.com/..." 
-                           value={webhookUrl}
-                           onChange={(e) => {
-                             setWebhookUrl(e.target.value);
-                             setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'userConfig'), { webhookUrl: e.target.value }, { merge: true });
-                           }}
-                           className="w-full border border-gray-300 rounded px-2 py-2 text-sm outline-none focus:border-emerald-500 focus:bg-white transition bg-gray-50 min-w-0"
-                         />
-                         <button 
-                           disabled={isTestingWebhook}
-                           onClick={async () => {
+                         <input type="url" placeholder="https://hook.us1.make.com/..." value={webhookUrl} onChange={(e) => { setWebhookUrl(e.target.value); setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'userConfig'), { webhookUrl: e.target.value }, { merge: true }); }} className="w-full border border-gray-300 rounded px-2 py-2 text-sm outline-none focus:border-emerald-500 focus:bg-white transition bg-gray-50 min-w-0" />
+                         <button disabled={isTestingWebhook} onClick={async () => {
                              if (!webhookUrl || !webhookUrl.trim().startsWith('http')) return alert("請先輸入有效的 Webhook 網址 (需包含 https://)");
                              setIsTestingWebhook(true);
                              try {
-                               const res = await fetch(webhookUrl.trim(), { 
-                                 method: 'POST', 
-                                 headers: {'Content-Type': 'application/json'}, 
-                                 body: JSON.stringify({ 
-                                   date: new Date().toISOString().slice(0, 10), 
-                                   amount: 100, 
-                                   description: "Webhook 測試成功！", 
-                                   category: "測試", 
-                                   bank: "測試銀行", 
-                                   card: "測試卡片",
-                                   rewardDetails: "國內基本 1%、滿額送 10點" // 測試用回饋字串
-                                 }) 
-                               });
-                               if (res.ok) alert("🚀 測試發送成功！請回 Make.com 查看是否有收到資料。");
-                               else alert("發送失敗，狀態碼: " + res.status + "\n請確認網址正確，且 Make.com 正在「監聽」中。");
-                             } catch (e) { alert("網路發送錯誤！請確認網址是否正確。\n錯誤訊息: " + e.message); }
-                             finally { setIsTestingWebhook(false); }
+                               const res = await fetch(webhookUrl.trim(), { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ date: new Date().toISOString().slice(0, 10), amount: 100, description: "Webhook 測試成功！", category: "測試", bank: "測試銀行", card: "測試卡片", rewardDetails: "國內基本 1%" }) });
+                               if (res.ok) alert("🚀 測試發送成功！請查看是否有收到資料。"); else alert("發送失敗，狀態碼: " + res.status);
+                             } catch (e) { alert("網路發送錯誤！\n錯誤訊息: " + e.message); } finally { setIsTestingWebhook(false); }
                            }} 
                            className="bg-emerald-100 text-emerald-700 px-3 rounded text-xs font-bold hover:bg-emerald-200 whitespace-nowrap transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                         >
-                           {isTestingWebhook ? '發送中...' : '測試發送'}
-                         </button>
+                         > {isTestingWebhook ? '發送中...' : '測試發送'} </button>
                        </div>
                      </div>
-
-                     <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 px-3 py-3 rounded-xl text-sm font-bold transition border border-red-200 mt-2">
-                       <LogOut size={18} /> 登出並切換至訪客模式
-                     </button>
+                     <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 px-3 py-3 rounded-xl text-sm font-bold transition border border-red-200 mt-2"><LogOut size={18} /> 登出並切換至訪客模式</button>
                    </div>
                 ) : (
                    <div className="space-y-3">
                      <p className="text-xs text-gray-500 mb-2 leading-relaxed">您目前使用的是<strong className="text-gray-700">「免登入訪客模式」</strong>。<br/>若想在其他手機或電腦同步這些資料，請登入您的專屬帳號。</p>
-                     
                      {authError && <div className="text-red-600 text-xs bg-red-50 p-2 rounded-lg border border-red-100">{authError}</div>}
-                     
                      <div className="space-y-2">
                        <input type="email" placeholder="輸入 Email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-500 transition"/>
                        <input type="password" placeholder="輸入密碼 (至少6位數)" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-500 transition"/>
                      </div>
-                     
                      <div className="flex gap-2 pt-1">
                         <button onClick={(e) => handleAuthSubmit(e, false)} disabled={!authEmail || !authPassword} className="flex-1 bg-indigo-100 text-indigo-700 py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-200 transition disabled:opacity-50">登入帳號</button>
                         <button onClick={(e) => handleAuthSubmit(e, true)} disabled={!authEmail || !authPassword} className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-700 transition disabled:opacity-50">註冊並綁定</button>
@@ -1406,42 +1074,15 @@ export default function App() {
                 )}
               </div>
 
-              {/* === 資料匯入匯出區塊 === */}
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                  <h3 className="text-gray-700 font-bold flex items-center gap-2 mb-4"><List size={18} className="text-blue-500" />資料匯入與備份</h3>
-                 
                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <button 
-                       onClick={handleExportCSV} 
-                       className="flex flex-col items-center justify-center gap-2 p-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl transition border border-blue-200"
-                    >
-                       <Download size={20} />
-                       <span className="font-bold text-sm">匯出 CSV 備份</span>
-                    </button>
-                    
-                    <label className="flex flex-col items-center justify-center gap-2 p-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl transition border border-emerald-200 cursor-pointer">
-                       <Upload size={20} />
-                       <span className="font-bold text-sm">從 CSV 匯入</span>
-                       <input 
-                         type="file" 
-                         accept=".csv" 
-                         ref={fileInputRef}
-                         onChange={handleImportCSV} 
-                         className="hidden" 
-                       />
-                    </label>
+                    <button onClick={handleExportCSV} className="flex flex-col items-center justify-center gap-2 p-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl transition border border-blue-200"><Download size={20} /><span className="font-bold text-sm">匯出 CSV 備份</span></button>
+                    <label className="flex flex-col items-center justify-center gap-2 p-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl transition border border-emerald-200 cursor-pointer"><Upload size={20} /><span className="font-bold text-sm">從 CSV 匯入</span><input type="file" accept=".csv" ref={fileInputRef} onChange={handleImportCSV} className="hidden" /></label>
                  </div>
-                 {importStatus && (
-                    <div className={`mt-3 p-3 rounded-lg text-sm text-center font-bold shadow-inner ${importStatus.includes('成功') ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-orange-100 text-orange-800'}`}>
-                       {importStatus}
-                    </div>
-                 )}
-                 <p className="text-[11px] text-gray-400 mt-3 leading-relaxed">
-                   💡 匯入提示：CSV 檔案標題列需包含：日期、分類、項目說明、金額、銀行、卡別、結帳日。您可以先「匯出備份」來查看正確的格式範例。
-                 </p>
+                 {importStatus && <div className={`mt-3 p-3 rounded-lg text-sm text-center font-bold shadow-inner ${importStatus.includes('成功') ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-orange-100 text-orange-800'}`}>{importStatus}</div>}
               </div>
 
-              {/* 支出分類設定 */}
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-gray-700 font-bold flex items-center gap-2"><PieChart size={18} className="text-emerald-500" />支出分類管理</h3>
@@ -1454,12 +1095,8 @@ export default function App() {
                     return (
                       <div key={cat.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-transparent hover:border-gray-200">
                         {isEditing ? (
-                          <button type="button" onClick={() => setPickerConfig({ type: 'category', id: cat.id, iconName: cat.iconName, color: cat.color })} className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-dashed border-gray-400 hover:scale-105 transition ${cat.color}`} title="點擊更換圖示與顏色">
-                             <IconComponent size={20} />
-                          </button>
-                        ) : (
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${cat.color}`}><IconComponent size={20} /></div>
-                        )}
+                          <button type="button" onClick={() => setPickerConfig({ type: 'category', id: cat.id, iconName: cat.iconName, color: cat.color })} className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-dashed border-gray-400 hover:scale-105 transition ${cat.color}`} title="點擊更換圖示與顏色"><IconComponent size={20} /></button>
+                        ) : (<div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${cat.color}`}><IconComponent size={20} /></div>)}
                         
                         {isEditing ? (
                           <div className="flex-1 flex gap-2 items-center min-w-0">
@@ -1480,28 +1117,22 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 信用卡與動態回饋管理 */}
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                 <div className="mb-4">
                   <h3 className="text-gray-700 font-bold flex items-center gap-2 mb-2"><CreditCard size={18} className="text-emerald-500" />銀行與回饋管理</h3>
                   <div className="flex gap-2 mb-4">
-                    <input type="text" placeholder="新增銀行 (例: 渣打)" value={newBankName ?? ''} onChange={(e) => setNewBankName(e.target.value)} className="flex-1 min-w-0 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"/>
+                    <input type="text" placeholder="新增銀行" value={newBankName ?? ''} onChange={(e) => setNewBankName(e.target.value)} className="flex-1 min-w-0 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"/>
                     <button onClick={() => {if(newBankName.trim() && !bankCards[newBankName.trim()]){ setBankCards({...bankCards, [newBankName.trim()]: []}); setNewBankName(''); }}} className="bg-emerald-100 text-emerald-700 px-3 rounded-xl hover:bg-emerald-200 font-medium shrink-0">新增</button>
-                    {/* 加入一鍵還原預設的終極按鈕 */}
-                    <button onClick={() => {if(window.confirm('確定要還原為系統最新預設的銀行與回饋嗎？(這會覆蓋掉您目前自訂的卡片)')){ setBankCards(DEFAULT_BANK_CARDS); saveSettingsToCloud(categories, DEFAULT_BANK_CARDS); }}} className="bg-red-50 text-red-600 px-3 rounded-xl hover:bg-red-100 font-medium whitespace-nowrap shrink-0" title="如果您的卡片設定跑掉，可以點此重置">還原預設</button>
+                    <button onClick={() => {if(window.confirm('確定要還原為系統最新預設？(這會覆蓋自訂卡片)')){ setBankCards(DEFAULT_BANK_CARDS); saveSettingsToCloud(categories, DEFAULT_BANK_CARDS); }}} className="bg-red-50 text-red-600 px-3 rounded-xl hover:bg-red-100 font-medium shrink-0">還原預設</button>
                   </div>
                 </div>
-
                 <div className="space-y-4">
                   {sortedBankNames.map(bankName => {
                     const cards = bankCards[bankName];
                     return (
                     <div key={bankName} className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                       <div className="bg-gray-50 p-3 flex justify-between items-center border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition" onClick={() => setEditingBank(editingBank === bankName ? null : bankName)}>
-                        <span className="font-bold text-gray-700 flex items-center gap-2">
-                           <div className={`w-6 h-6 rounded-full flex items-center justify-center ${cards[0]?.color || 'bg-gray-200 text-gray-600'}`}>{React.createElement(ICON_MAP[cards[0]?.iconName] || Landmark, { size: 12 })}</div>
-                           {bankName}
-                        </span>
+                        <span className="font-bold text-gray-700 flex items-center gap-2"><div className={`w-6 h-6 rounded-full flex items-center justify-center ${cards[0]?.color || 'bg-gray-200 text-gray-600'}`}>{React.createElement(ICON_MAP[cards[0]?.iconName] || Landmark, { size: 12 })}</div>{bankName}</span>
                         <div className="flex items-center gap-2">
                           <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">{cards.length} 張卡</span>
                           <button onClick={(e) => { e.stopPropagation(); if(window.confirm('確定刪除此銀行？')){const nb = {...bankCards}; delete nb[bankName]; setBankCards(nb); saveSettingsToCloud(categories, nb);}}} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={16}/></button>
@@ -1517,87 +1148,41 @@ export default function App() {
                               {editingCardKey === `${bankName}-${idx}` ? (
                                 <div className="p-3 bg-emerald-50/50 border border-emerald-200 rounded-xl space-y-3 relative">
                                   <button onClick={() => setEditingCardKey(null)} className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"><X size={18}/></button>
-                                  <p className="text-xs font-bold text-emerald-700 mb-2 flex items-center gap-1"><Edit2 size={14}/> 編輯卡片設定</p>
-                                  
+                                  <p className="text-xs font-bold text-emerald-700 mb-2 flex items-center gap-1"><Edit2 size={14}/> 編輯卡片</p>
                                   <div className="flex items-center gap-2 mb-2">
-                                     <button type="button" onClick={() => setPickerConfig({ type: 'cardForm', iconName: cardForm.iconName, color: cardForm.color })} className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-dashed border-gray-400 hover:scale-105 transition ${cardForm.color || 'bg-gray-100 text-gray-600'}`} title="點擊更換卡片圖示">
-                                        {React.createElement(ICON_MAP[cardForm.iconName] || CreditCard, { size: 24 })}
-                                     </button>
+                                     <button type="button" onClick={() => setPickerConfig({ type: 'cardForm', iconName: cardForm.iconName, color: cardForm.color })} className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-dashed border-gray-400 ${cardForm.color || 'bg-gray-100 text-gray-600'}`}>{React.createElement(ICON_MAP[cardForm.iconName] || CreditCard, { size: 24 })}</button>
                                      <input type="text" placeholder="卡片名稱 (必填)" value={cardForm.name ?? ''} onChange={(e) => setCardForm({...cardForm, name: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-[16px] font-bold flex-1 min-w-0"/>
                                   </div>
-
                                   <div className="flex gap-2">
-                                    <input type="text" placeholder="結帳日 (例: 每月12日)" value={cardForm.billing ?? ''} onChange={(e) => setCardForm({...cardForm, billing: e.target.value})} className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-[16px] min-w-0"/>
+                                    <input type="text" placeholder="結帳日" value={cardForm.billing ?? ''} onChange={(e) => setCardForm({...cardForm, billing: e.target.value})} className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-[16px] min-w-0"/>
                                     <input type="number" placeholder="信用額度" value={cardForm.limit ?? ''} onChange={(e) => setCardForm({...cardForm, limit: e.target.value})} className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-[16px] min-w-0"/>
                                   </div>
-                                  
-                                  <hr className="border-emerald-200 my-2" />
-                                  <div className="flex items-center justify-between mb-2">
-                                    <p className="text-xs font-bold text-emerald-700 flex items-center gap-1"><Gift size={14}/> 回饋清單 (支援多筆疊加)</p>
-                                    <select value={cardForm.rewardCycle ?? 'calendar'} onChange={(e) => setCardForm({...cardForm, rewardCycle: e.target.value})} className="border border-emerald-300 bg-white rounded text-xs px-2 py-1 outline-none text-emerald-800">
-                                      <option value="calendar">依月曆月結算</option><option value="billing">依結帳週期結算</option>
-                                    </select>
-                                  </div>
-
+                                  <div className="flex items-center justify-between mt-2 mb-2"><p className="text-xs font-bold text-emerald-700 flex items-center gap-1"><Gift size={14}/> 回饋清單</p><select value={cardForm.rewardCycle ?? 'calendar'} onChange={(e) => setCardForm({...cardForm, rewardCycle: e.target.value})} className="border border-emerald-300 bg-white rounded text-xs px-2 py-1 outline-none text-emerald-800"><option value="calendar">月曆月結算</option><option value="billing">結帳週期結算</option></select></div>
                                   <div className="space-y-2">
                                     {cardForm.rewards.map((rule, rIdx) => (
                                       <div key={rIdx} className="bg-white border border-gray-200 rounded-lg p-2 shadow-sm">
                                         <div className="flex justify-between items-center mb-2">
-                                          <input type="text" placeholder="回饋名稱 (例: 國內一般 / 網購加碼)" value={rule.name ?? ''} onChange={(e) => updateRewardRuleInForm(rIdx, 'name', e.target.value)} className="font-bold text-sm text-gray-800 border-b border-gray-200 outline-none w-2/3 pb-1 min-w-0"/>
+                                          <input type="text" placeholder="回饋名稱" value={rule.name ?? ''} onChange={(e) => updateRewardRuleInForm(rIdx, 'name', e.target.value)} className="font-bold text-sm text-gray-800 border-b border-gray-200 outline-none w-2/3 pb-1 min-w-0"/>
                                           <button onClick={() => removeRewardRuleFromForm(rIdx)} className="text-red-400 hover:text-red-600 shrink-0"><X size={16}/></button>
                                         </div>
-                                        
                                         {rule.type === 'cashback' ? (
-                                          <div className="flex gap-2">
-                                            <div className="flex items-center border border-gray-200 rounded px-2 w-1/2">
-                                              <span className="text-xs text-gray-500 mr-1 shrink-0">回饋</span>
-                                              <input type="number" step="0.01" placeholder="比例" value={rule.rate ?? ''} onChange={(e) => updateRewardRuleInForm(rIdx, 'rate', e.target.value)} className="w-full text-right text-sm py-1 outline-none font-mono min-w-0"/>
-                                              <span className="text-gray-500 text-xs ml-1">%</span>
-                                            </div>
-                                            <div className="flex items-center border border-gray-200 rounded px-2 w-1/2">
-                                              <span className="text-xs text-gray-500 mr-1 shrink-0">上限$</span>
-                                              <input type="number" placeholder="無上限" value={rule.limit ?? ''} onChange={(e) => updateRewardRuleInForm(rIdx, 'limit', e.target.value)} className="w-full text-right text-sm py-1 outline-none font-mono min-w-0"/>
-                                            </div>
-                                          </div>
+                                          <div className="flex gap-2"><div className="flex items-center border rounded px-2 w-1/2"><span className="text-xs text-gray-500 mr-1 shrink-0">回饋</span><input type="number" step="0.01" value={rule.rate ?? ''} onChange={(e) => updateRewardRuleInForm(rIdx, 'rate', e.target.value)} className="w-full text-right text-sm py-1 outline-none font-mono min-w-0"/><span className="text-gray-500 text-xs ml-1">%</span></div><div className="flex items-center border rounded px-2 w-1/2"><span className="text-xs text-gray-500 mr-1 shrink-0">上限$</span><input type="number" placeholder="無上限" value={rule.limit ?? ''} onChange={(e) => updateRewardRuleInForm(rIdx, 'limit', e.target.value)} className="w-full text-right text-sm py-1 outline-none font-mono min-w-0"/></div></div>
                                         ) : (
-                                          <div className="flex flex-col gap-2">
-                                            <div className="flex items-center gap-1 text-xs text-gray-600">
-                                              每滿$ <input type="number" value={rule.spend ?? ''} onChange={(e) => updateRewardRuleInForm(rIdx, 'spend', e.target.value)} className="w-12 border-b border-gray-300 text-center outline-none font-bold text-indigo-600 min-w-0"/>
-                                              送 <input type="number" value={rule.earn ?? ''} onChange={(e) => updateRewardRuleInForm(rIdx, 'earn', e.target.value)} className="w-12 border-b border-gray-300 text-center outline-none font-bold text-indigo-600 min-w-0"/>
-                                              <input type="text" placeholder="點數單位" value={rule.unit ?? ''} onChange={(e) => updateRewardRuleInForm(rIdx, 'unit', e.target.value)} className="flex-1 border-b border-gray-300 px-1 outline-none min-w-0"/>
-                                            </div>
-                                            <div className="flex items-center border border-gray-200 rounded px-2 w-full">
-                                              <span className="text-xs text-gray-500 mr-1 shrink-0">可刷上限$</span>
-                                              <input type="number" placeholder="無上限" value={rule.limit ?? ''} onChange={(e) => updateRewardRuleInForm(rIdx, 'limit', e.target.value)} className="w-full text-right text-sm py-1 outline-none font-mono min-w-0"/>
-                                            </div>
-                                          </div>
+                                          <div className="flex flex-col gap-2"><div className="flex items-center gap-1 text-xs text-gray-600">每滿$ <input type="number" value={rule.spend ?? ''} onChange={(e) => updateRewardRuleInForm(rIdx, 'spend', e.target.value)} className="w-12 border-b text-center outline-none font-bold text-indigo-600 min-w-0"/> 送 <input type="number" value={rule.earn ?? ''} onChange={(e) => updateRewardRuleInForm(rIdx, 'earn', e.target.value)} className="w-12 border-b text-center outline-none font-bold text-indigo-600 min-w-0"/> <input type="text" placeholder="單位" value={rule.unit ?? ''} onChange={(e) => updateRewardRuleInForm(rIdx, 'unit', e.target.value)} className="flex-1 border-b px-1 outline-none min-w-0"/></div><div className="flex items-center border rounded px-2 w-full"><span className="text-xs text-gray-500 mr-1 shrink-0">上限$</span><input type="number" placeholder="無上限" value={rule.limit ?? ''} onChange={(e) => updateRewardRuleInForm(rIdx, 'limit', e.target.value)} className="w-full text-right text-sm py-1 outline-none font-mono min-w-0"/></div></div>
                                         )}
                                       </div>
                                     ))}
                                   </div>
-
-                                  <div className="flex gap-2 mt-2">
-                                    <button onClick={() => addRewardRuleToForm('cashback')} className="flex-1 border border-dashed border-emerald-400 text-emerald-700 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-100">+ 現金回饋</button>
-                                    <button onClick={() => addRewardRuleToForm('points')} className="flex-1 border border-dashed border-indigo-400 text-indigo-700 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100">+ 紅利點數</button>
-                                  </div>
-
-                                  <button onClick={() => saveCardForm(bankName, idx)} className="w-full bg-emerald-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 transition mt-3 flex justify-center items-center gap-2"><Save size={16}/> 儲存卡片設定</button>
+                                  <div className="flex gap-2 mt-2"><button onClick={() => addRewardRuleToForm('cashback')} className="flex-1 border border-dashed border-emerald-400 text-emerald-700 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-100">+ 現金回饋</button><button onClick={() => addRewardRuleToForm('points')} className="flex-1 border border-dashed border-indigo-400 text-indigo-700 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100">+ 紅利點數</button></div>
+                                  <button onClick={() => saveCardForm(bankName, idx)} className="w-full bg-emerald-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 transition mt-3 flex justify-center items-center gap-2"><Save size={16}/> 儲存設定</button>
                                 </div>
                               ) : (
                                 <div className="flex justify-between items-start bg-white p-3 rounded-xl border border-gray-100 shadow-sm hover:border-emerald-200 transition group mb-2">
                                   <div className="space-y-1.5 flex-1 min-w-0">
-                                    <div className="font-bold text-gray-800 text-base flex items-center gap-2">
-                                      <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${card.color || 'bg-gray-100 text-gray-600'}`}><CardIcon size={12}/></div>
-                                      <span className="truncate">{card.name}</span>
-                                      {card.rewards?.length > 0 && card.rewardCycle === 'billing' && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-normal shrink-0">依結帳週期</span>}
-                                    </div>
+                                    <div className="font-bold text-gray-800 text-base flex items-center gap-2"><div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${card.color || 'bg-gray-100 text-gray-600'}`}><CardIcon size={12}/></div><span className="truncate">{card.name}</span>{card.rewards?.length > 0 && card.rewardCycle === 'billing' && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-normal shrink-0">依結帳</span>}</div>
                                     <div className="flex flex-col gap-1 mt-1 pl-8">
-                                      {card.rewards?.map((r, i) => (
-                                        <span key={i} className={`text-[10px] font-medium px-1.5 py-0.5 rounded self-start truncate max-w-full ${r.type === 'cashback' ? 'text-emerald-700 bg-emerald-50 border border-emerald-100' : 'text-indigo-700 bg-indigo-50 border border-indigo-100'}`}>
-                                          【{r.name}】 {r.type==='cashback' ? `${r.rate}%` : `滿${r.spend}送${r.earn}${r.unit}`} {r.limit ? `(上限刷$${r.limit})`:''}
-                                        </span>
-                                      ))}
-                                      {(!card.rewards || card.rewards.length === 0) && <span className="text-[10px] text-gray-400">無特殊回饋設定</span>}
+                                      {card.rewards?.map((r, i) => (<span key={i} className={`text-[10px] font-medium px-1.5 py-0.5 rounded self-start truncate max-w-full ${r.type === 'cashback' ? 'text-emerald-700 bg-emerald-50 border border-emerald-100' : 'text-indigo-700 bg-indigo-50 border border-indigo-100'}`}>【{r.name}】 {r.type==='cashback' ? `${r.rate}%` : `滿${r.spend}送${r.earn}${r.unit}`} {r.limit ? `(上限刷$${r.limit})`:''}</span>))}
+                                      {(!card.rewards || card.rewards.length === 0) && <span className="text-[10px] text-gray-400">無回饋</span>}
                                     </div>
                                   </div>
                                   <div className="flex gap-1 shrink-0"><button onClick={() => openCardForm(bankName, card, idx)} className="text-gray-400 hover:text-emerald-600 p-1 bg-gray-50 rounded"><Edit2 size={16}/></button></div>
@@ -1606,28 +1191,15 @@ export default function App() {
                             </div>
                             )
                           })}
-                          
                           {editingCardKey === `new-${bankName}` ? (
                             <div className="p-3 bg-emerald-50/50 border border-emerald-200 rounded-xl space-y-3 relative mt-2">
                                <button onClick={() => setEditingCardKey(null)} className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"><X size={18}/></button>
                                <p className="text-xs font-bold text-emerald-700 mb-2 flex items-center gap-1"><Plus size={14}/> 新增卡片</p>
-                               
-                               <div className="flex items-center gap-2 mb-2">
-                                  <button type="button" onClick={() => setPickerConfig({ type: 'cardForm', iconName: cardForm.iconName, color: cardForm.color })} className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-dashed border-gray-400 hover:scale-105 transition ${cardForm.color || 'bg-gray-100 text-gray-600'}`} title="點擊更換卡片圖示">
-                                     {React.createElement(ICON_MAP[cardForm.iconName] || CreditCard, { size: 24 })}
-                                  </button>
-                                  <input type="text" placeholder="卡片名稱 (必填)" value={cardForm.name ?? ''} onChange={(e) => setCardForm({...cardForm, name: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-[16px] font-bold flex-1 min-w-0"/>
-                               </div>
-
-                               <div className="flex gap-2">
-                                 <input type="text" placeholder="結帳日" value={cardForm.billing ?? ''} onChange={(e) => setCardForm({...cardForm, billing: e.target.value})} className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-[16px] min-w-0"/>
-                                 <input type="number" placeholder="信用額度" value={cardForm.limit ?? ''} onChange={(e) => setCardForm({...cardForm, limit: e.target.value})} className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-[16px] min-w-0"/>
-                               </div>
-                               <button onClick={() => saveCardForm(bankName, -1)} className="w-full bg-emerald-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 transition mt-2">先建立卡片，再編輯回饋規則</button>
+                               <div className="flex items-center gap-2 mb-2"><button type="button" onClick={() => setPickerConfig({ type: 'cardForm', iconName: cardForm.iconName, color: cardForm.color })} className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-dashed border-gray-400 hover:scale-105 transition ${cardForm.color || 'bg-gray-100 text-gray-600'}`}>{React.createElement(ICON_MAP[cardForm.iconName] || CreditCard, { size: 24 })}</button><input type="text" placeholder="卡片名稱 (必填)" value={cardForm.name ?? ''} onChange={(e) => setCardForm({...cardForm, name: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-[16px] font-bold flex-1 min-w-0"/></div>
+                               <div className="flex gap-2"><input type="text" placeholder="結帳日" value={cardForm.billing ?? ''} onChange={(e) => setCardForm({...cardForm, billing: e.target.value})} className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-[16px] min-w-0"/><input type="number" placeholder="信用額度" value={cardForm.limit ?? ''} onChange={(e) => setCardForm({...cardForm, limit: e.target.value})} className="w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-[16px] min-w-0"/></div>
+                               <button onClick={() => saveCardForm(bankName, -1)} className="w-full bg-emerald-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 transition mt-2">先建立卡片，再編輯回饋</button>
                             </div>
-                          ) : (
-                            <button onClick={() => openCardForm(bankName, null, -1)} className="w-full bg-gray-50 text-emerald-600 py-2 rounded-xl text-sm font-medium hover:bg-gray-100 border border-dashed border-gray-300 mt-2">+ 新增卡片</button>
-                          )}
+                          ) : (<button onClick={() => openCardForm(bankName, null, -1)} className="w-full bg-gray-50 text-emerald-600 py-2 rounded-xl text-sm font-medium hover:bg-gray-100 border border-dashed border-gray-300 mt-2">+ 新增卡片</button>)}
                         </div>
                       )}
                     </div>
@@ -1638,88 +1210,30 @@ export default function App() {
           )}
         </main>
 
-        {/* ========================================== */}
-        {/* 外觀選擇器 Modal (圖示與顏色) */}
-        {/* ========================================== */}
+        {/* 外觀選擇器 Modal */}
         {pickerConfig && (
           <div className="fixed inset-0 bg-black/70 z-[60] flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity">
-            <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Palette size={20} className="text-emerald-600"/> 自訂外觀</h3>
-                <button onClick={() => setPickerConfig(null)} className="p-1 text-gray-400 hover:bg-gray-100 rounded-full"><X size={20}/></button>
-              </div>
-
-              {/* 即時預覽區 */}
-              <div className="flex justify-center mb-6">
-                 <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-md ${pickerConfig.color}`}>
-                    {React.createElement(ICON_MAP[pickerConfig.iconName] || MoreHorizontal, { size: 32 })}
-                 </div>
-              </div>
-
+            <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 pb-safe shadow-2xl">
+              <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Palette size={20} className="text-emerald-600"/> 自訂外觀</h3><button onClick={() => setPickerConfig(null)} className="p-1 text-gray-400 hover:bg-gray-100 rounded-full"><X size={20}/></button></div>
+              <div className="flex justify-center mb-6"><div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-md ${pickerConfig.color}`}>{React.createElement(ICON_MAP[pickerConfig.iconName] || MoreHorizontal, { size: 32 })}</div></div>
               <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-bold text-gray-600 mb-2">1. 選擇顏色</p>
-                  <div className="flex flex-wrap gap-2">
-                    {COLOR_OPTIONS.map(c => (
-                       <button key={c} onClick={() => setPickerConfig({...pickerConfig, color: c})} className={`w-8 h-8 rounded-full shadow-sm border-2 ${pickerConfig.color === c ? 'border-gray-800 scale-110' : 'border-transparent'} ${c.split(' ')[0].replace('100', '400')}`}></button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-sm font-bold text-gray-600 mb-2">2. 選擇圖示</p>
-                  <div className="grid grid-cols-6 gap-3 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded-xl border border-gray-200">
-                    {AVAILABLE_ICONS.map(iconKey => {
-                       const IconComp = ICON_MAP[iconKey];
-                       const isSelected = pickerConfig.iconName === iconKey;
-                       return (
-                         <button key={iconKey} onClick={() => setPickerConfig({...pickerConfig, iconName: iconKey})} className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isSelected ? 'bg-emerald-600 text-white shadow-md scale-110' : 'bg-white text-gray-600 hover:bg-gray-200 shadow-sm border border-gray-200'}`}>
-                           <IconComp size={20} />
-                         </button>
-                       )
-                    })}
-                  </div>
-                </div>
+                <div><p className="text-sm font-bold text-gray-600 mb-2">1. 選擇顏色</p><div className="flex flex-wrap gap-2">{COLOR_OPTIONS.map(c => (<button key={c} onClick={() => setPickerConfig({...pickerConfig, color: c})} className={`w-8 h-8 rounded-full shadow-sm border-2 ${pickerConfig.color === c ? 'border-gray-800 scale-110' : 'border-transparent'} ${c.split(' ')[0].replace('100', '400')}`}></button>))}</div></div>
+                <div><p className="text-sm font-bold text-gray-600 mb-2">2. 選擇圖示</p><div className="grid grid-cols-6 gap-3 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded-xl border border-gray-200">{AVAILABLE_ICONS.map(iconKey => {const IconComp = ICON_MAP[iconKey]; const isSelected = pickerConfig.iconName === iconKey; return (<button key={iconKey} onClick={() => setPickerConfig({...pickerConfig, iconName: iconKey})} className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isSelected ? 'bg-emerald-600 text-white shadow-md scale-110' : 'bg-white text-gray-600 hover:bg-gray-200 shadow-sm border border-gray-200'}`}><IconComp size={20} /></button>)})}</div></div>
               </div>
-
-              <button onClick={() => handlePickerSave(pickerConfig.iconName, pickerConfig.color)} className="w-full bg-gray-800 text-white font-bold py-3 rounded-xl mt-6 hover:bg-black transition active:scale-95">
-                確認選擇
-              </button>
+              <button onClick={() => handlePickerSave(pickerConfig.iconName, pickerConfig.color)} className="w-full bg-gray-800 text-white font-bold py-3 rounded-xl mt-6 hover:bg-black transition active:scale-95">確認選擇</button>
             </div>
           </div>
         )}
 
-        {/* ========================================== */}
-        {/* 懸浮新增按鈕 (FAB) - 右側獨立區塊 */}
-        {/* ========================================== */}
-        <button
-          onClick={() => openExpenseModal()}
-          className="absolute right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-emerald-700 transition-all z-30"
-          style={{ bottom: 'calc(5.5rem + max(0px, env(safe-area-inset-bottom)))' }}
-        >
-          <Plus size={30} />
-        </button>
+        {/* 懸浮新增按鈕 (FAB) */}
+        <button onClick={() => openExpenseModal()} className="absolute right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-emerald-700 transition-all z-30 bottom-fab"><Plus size={30} /></button>
 
-        {/* ========================================== */}
-        {/* 底部導覽列 (純白底、精準貼齊 Home 橫條設計) */}
-        {/* ========================================== */}
-        <div 
-          className="mt-auto w-full bg-white border-t border-gray-200 z-20 shrink-0"
-          style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
-        >
-          <div className="flex justify-between items-center px-6 h-[60px]">
-            <button onClick={() => setActiveTab('list')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'list' ? 'text-emerald-600' : 'text-gray-400'}`}>
-              <List size={24} />
-              <span className="text-[10px] font-bold">明細</span>
-            </button>
-            <button onClick={() => setActiveTab('report')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'report' ? 'text-emerald-600' : 'text-gray-400'}`}>
-              <PieChart size={24} />
-              <span className="text-[10px] font-bold">報表</span>
-            </button>
-            <button onClick={() => setActiveTab('settings')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'settings' ? 'text-emerald-600' : 'text-gray-400'}`}>
-              <Settings size={24} />
-              <span className="text-[10px] font-bold">設定</span>
-            </button>
+        {/* 底部導覽列 (徹底消除綠底、純白貼齊 Home 橫條) */}
+        <div className="w-full bg-white border-t border-gray-200 z-20 shrink-0 pb-safe">
+          <div className="flex justify-between items-center px-6 h-14">
+            <button onClick={() => setActiveTab('list')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'list' ? 'text-emerald-600' : 'text-gray-400'}`}><List size={24} /><span className="text-[10px] font-bold">明細</span></button>
+            <button onClick={() => setActiveTab('report')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'report' ? 'text-emerald-600' : 'text-gray-400'}`}><PieChart size={24} /><span className="text-[10px] font-bold">報表</span></button>
+            <button onClick={() => setActiveTab('settings')} className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition ${activeTab === 'settings' ? 'text-emerald-600' : 'text-gray-400'}`}><Settings size={24} /><span className="text-[10px] font-bold">設定</span></button>
           </div>
         </div>
 
@@ -1739,87 +1253,46 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="min-w-0">
-                    <label className="text-gray-600 text-sm font-medium mb-1 block truncate">日期</label>
-                    <input type="date" name="date" value={formData.date ?? ''} onChange={handleFormChange} required className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 min-w-0"/>
-                  </div>
-                  <div className="min-w-0">
-                    <label className="text-gray-600 text-sm font-medium mb-1 block truncate">分類</label>
-                    <select name="category" value={formData.category ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white min-w-0">
-                      {categories.map(cat => <option key={cat.id} value={cat.name} className="truncate">{cat.name}</option>)}
-                    </select>
-                  </div>
+                  <div className="min-w-0"><label className="text-gray-600 text-sm font-medium mb-1 block truncate">日期</label><input type="date" name="date" value={formData.date ?? ''} onChange={handleFormChange} required className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 min-w-0"/></div>
+                  <div className="min-w-0"><label className="text-gray-600 text-sm font-medium mb-1 block truncate">分類</label><select name="category" value={formData.category ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white min-w-0">{categories.map(cat => <option key={cat.id} value={cat.name} className="truncate">{cat.name}</option>)}</select></div>
                 </div>
 
-                <div className="min-w-0">
-                  <label className="text-gray-600 text-sm font-medium mb-1 block truncate">項目說明</label>
-                  <input type="text" name="description" value={formData.description ?? ''} onChange={handleFormChange} placeholder="例如：午餐、搭捷運" required className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 min-w-0"/>
-                </div>
-
+                <div className="min-w-0"><label className="text-gray-600 text-sm font-medium mb-1 block truncate">項目說明</label><input type="text" name="description" value={formData.description ?? ''} onChange={handleFormChange} placeholder="例如：午餐、搭捷運" required className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 min-w-0"/></div>
                 <hr className="border-gray-200" />
-
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="min-w-0">
-                    <label className="text-gray-600 text-sm font-medium mb-1 block truncate">銀行/支付</label>
-                    <select name="bank" value={formData.bank ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white min-w-0">
-                      {sortedBankNames.map(bank => <option key={bank} value={bank} className="truncate">{bank}</option>)}
-                    </select>
-                  </div>
-                  <div className="min-w-0">
-                    <label className="text-gray-600 text-sm font-medium mb-1 block truncate">卡別</label>
-                    <select name="card" value={formData.card ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white min-w-0">
-                      {bankCards[formData.bank]?.map(card => <option key={card.name} value={card.name} className="truncate">{card.name}</option>)}
-                    </select>
-                  </div>
+                  <div className="min-w-0"><label className="text-gray-600 text-sm font-medium mb-1 block truncate">銀行/支付</label><select name="bank" value={formData.bank ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white min-w-0">{sortedBankNames.map(bank => <option key={bank} value={bank} className="truncate">{bank}</option>)}</select></div>
+                  <div className="min-w-0"><label className="text-gray-600 text-sm font-medium mb-1 block truncate">卡別</label><select name="card" value={formData.card ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white min-w-0">{bankCards[formData.bank]?.map(card => <option key={card.name} value={card.name} className="truncate">{card.name}</option>)}</select></div>
                 </div>
 
-                {/* 動態渲染該卡片專屬的「回饋標籤」供點選 */}
                 {bankCards[formData.bank]?.find(c => c.name === formData.card)?.rewards?.length > 0 && (
                   <div>
-                    <label className="text-gray-600 text-sm font-medium mb-2 block flex items-center gap-1"><Gift size={16}/> 套用回饋項目 (可複選疊加)</label>
+                    <label className="text-gray-600 text-sm font-medium mb-2 block flex items-center gap-1"><Gift size={16}/> 套用回饋項目</label>
                     <div className="flex flex-wrap gap-2">
                       {bankCards[formData.bank].find(c => c.name === formData.card).rewards.map(rule => {
                         const isSelected = formData.appliedRewards.includes(rule.id);
-                        return (
-                          <div 
-                            key={rule.id} 
-                            onClick={() => toggleRewardRule(rule.id)}
-                            className={`cursor-pointer px-3 py-1.5 rounded-full border text-xs font-bold transition select-none ${isSelected ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
-                          >
-                            {rule.name} {rule.type === 'cashback' ? `${rule.rate}%` : `(送${rule.unit})`}
-                          </div>
-                        )
+                        return (<div key={rule.id} onClick={() => toggleRewardRule(rule.id)} className={`cursor-pointer px-3 py-1.5 rounded-full border text-xs font-bold transition select-none ${isSelected ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>{rule.name} {rule.type === 'cashback' ? `${rule.rate}%` : `(送${rule.unit})`}</div>)
                       })}
                     </div>
                   </div>
                 )}
-
-                <button type="submit" className="w-full bg-emerald-600 text-white font-bold text-lg py-4 rounded-2xl mt-2 hover:bg-emerald-700 transition active:scale-95 flex items-center justify-center gap-2">
-                  <Check size={24} />{editingExpenseId ? '更新紀錄' : '儲存紀錄'}
-                </button>
+                <button type="submit" className="w-full bg-emerald-600 text-white font-bold text-lg py-4 rounded-2xl mt-2 hover:bg-emerald-700 transition active:scale-95 flex items-center justify-center gap-2"><Check size={24} />{editingExpenseId ? '更新紀錄' : '儲存紀錄'}</button>
               </form>
             </div>
           </div>
         )}
 
-        {/* ========================================== */}
         {/* 刪除防呆確認 Modal */}
-        {/* ========================================== */}
         {expenseToDelete && (
           <div className="fixed inset-0 bg-black/60 z-[70] flex justify-center items-center backdrop-blur-sm p-4 transition-opacity pointer-events-auto">
             <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4">
-                <Trash2 size={32} />
-              </div>
+              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4"><Trash2 size={32} /></div>
               <h3 className="text-xl font-bold text-gray-800 mb-2">確定要刪除這筆紀錄嗎？</h3>
               <p className="text-sm text-gray-500 mb-6">此動作無法復原，請確認您要刪除的內容：</p>
-              
               <div className="text-left bg-gray-50 p-4 rounded-2xl w-full border border-gray-200 flex flex-col gap-1 mb-6">
                 <span className="text-xs text-gray-400">{expenseToDelete.date} • {expenseToDelete.category}</span>
                 <span className="font-bold text-gray-800 text-lg leading-snug">{expenseToDelete.description}</span>
                 <span className="font-mono text-xl text-red-600 font-bold mt-1">NT$ {expenseToDelete.amount.toLocaleString()}</span>
               </div>
-
               <div className="flex gap-3 w-full">
                 <button onClick={() => setExpenseToDelete(null)} className="flex-1 bg-gray-100 text-gray-700 py-3.5 rounded-xl font-bold hover:bg-gray-200 transition active:scale-95">取消</button>
                 <button onClick={() => executeDelete(expenseToDelete.id)} className="flex-1 bg-red-500 text-white py-3.5 rounded-xl font-bold hover:bg-red-600 transition active:scale-95 shadow-md shadow-red-200">確定刪除</button>
