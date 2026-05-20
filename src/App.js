@@ -280,8 +280,8 @@ export default function App() {
         document.head.appendChild(appleStatusBar);
       }
 
-      // 4. 動態改變網頁最底層顏色，防 iOS 彈簧下拉時露出白底
-      document.body.style.backgroundColor = targetColor;
+      // 4. 固定網頁最底層顏色為純白，讓手機底部的 Home 橫條區域與純白導覽列完美融合，消除多餘綠色區塊
+      document.body.style.backgroundColor = '#ffffff';
     } catch (e) {
       console.warn("無法調整 Meta Tags", e);
     }
