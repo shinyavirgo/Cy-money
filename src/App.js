@@ -1062,7 +1062,7 @@ export default function App() {
               <form onSubmit={handleSaveExpense} className="space-y-4">
                 <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 min-w-0">
                   <label className="text-emerald-700 text-sm font-semibold mb-1 block">金額 (NT$)</label>
-                  <input type="number" name="amount" value={formData.amount ?? ''} onChange={handleFormChange} placeholder="0" required className="w-full bg-transparent text-4xl font-bold text-emerald-800 placeholder-emerald-300 outline-none font-mono min-w-0"/>
+                  <input type="number" inputMode="decimal" pattern="[0-9]*" name="amount" value={formData.amount ?? ''} onChange={handleFormChange} placeholder="0" required className="w-full bg-transparent text-4xl font-bold text-emerald-800 placeholder-emerald-300 outline-none font-mono min-w-0"/>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
