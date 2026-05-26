@@ -723,38 +723,48 @@ export default function App() {
                               </span>
                               
                               {hasCreditLimit && (
-                                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                  <div className="flex justify-between items-end mb-1.5">
-                                    <span className="text-[11px] font-bold text-gray-600 flex items-center gap-1">💳 總信用額度</span>
-                                    <span className={`font-mono text-xs ${card.limit - usedAmount < 0 ? 'text-red-500' : 'text-emerald-600 font-bold'}`}>
-                                      剩餘 ${(card.limit - usedAmount).toLocaleString()} <span className="text-gray-400 font-normal text-[10px]">/ {card.limit.toLocaleString()}</span>
-                                    </span>
+                                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 mt-1">
+                                  <div className="flex justify-between items-center mb-1.5">
+                                    <span className="text-[11px] font-bold text-gray-600 flex items-center gap-1">💳 信用額度</span>
+                                    <span className="text-[10px] text-gray-500 font-mono">總額 ${card.limit.toLocaleString()}</span>
                                   </div>
-                                  <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                                  <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden mb-1.5">
                                     <div className={`h-1.5 rounded-full transition-all ${card.limit - usedAmount < 0 ? 'bg-red-500' : ((usedAmount/card.limit) > 0.8 ? 'bg-orange-400' : 'bg-emerald-400')}`} style={{ width: `${Math.min(100, (usedAmount / card.limit) * 100)}%` }}></div>
+                                  </div>
+                                  <div className="flex justify-between items-center text-[10px] font-mono">
+                                    <span className="text-gray-600">已刷 ${usedAmount.toLocaleString()}</span>
+                                    <span className={card.limit - usedAmount < 0 ? 'text-red-500 font-bold' : 'text-emerald-600 font-bold'}>
+                                      剩餘 ${(card.limit - usedAmount).toLocaleString()}
+                                    </span>
                                   </div>
                                 </div>
                               )}
 
                               {cardTracking.length > 0 && (
-                                <div className="space-y-2">
+                                <div className="space-y-2 mt-2">
                                   {cardTracking.map((track, idx) => {
                                     const remaining = Math.max(0, track.limit - track.spent);
                                     const percentage = Math.min(100, Math.round((track.spent / track.limit) * 100)) || 0;
                                     const isMaxedOut = track.spent >= track.limit;
                                     return (
                                       <div key={idx} className="bg-orange-50/60 rounded-xl p-3 border border-orange-100/50">
-                                        <div className="flex justify-between items-end mb-1.5 gap-1">
+                                        <div className="flex justify-between items-start mb-1.5 gap-1">
                                           <div className="min-w-0">
                                             <span className="font-bold text-orange-800 block text-[11px] truncate">🎁 {track.ruleName}</span>
                                             <span className="text-[9px] text-orange-500/80 truncate block">{track.cycleLabel}</span>
                                           </div>
-                                          <span className={`font-mono text-xs shrink-0 ${isMaxedOut ? 'text-red-500 font-bold' : 'text-orange-600 font-bold'}`}>
-                                            剩餘 ${remaining.toLocaleString()} <span className="text-orange-400/70 font-normal text-[10px]">/ {track.limit.toLocaleString()}</span>
+                                          <span className="text-[10px] text-orange-600/70 font-mono shrink-0">
+                                            上限 ${track.limit.toLocaleString()}
                                           </span>
                                         </div>
-                                        <div className="w-full bg-orange-200/50 rounded-full h-1.5 relative overflow-hidden">
+                                        <div className="w-full bg-orange-200/50 rounded-full h-1.5 relative overflow-hidden mb-1.5">
                                           <div className={`h-1.5 rounded-full absolute top-0 left-0 transition-all ${isMaxedOut ? 'bg-red-400' : 'bg-orange-400'}`} style={{ width: `${percentage}%` }}></div>
+                                        </div>
+                                        <div className="flex justify-between items-center text-[10px] font-mono">
+                                          <span className="text-orange-600/80">已刷 ${track.spent.toLocaleString()}</span>
+                                          <span className={`shrink-0 ${isMaxedOut ? 'text-red-500 font-bold' : 'text-orange-600 font-bold'}`}>
+                                            剩餘 ${remaining.toLocaleString()}
+                                          </span>
                                         </div>
                                       </div>
                                     );
@@ -1062,6 +1072,7 @@ export default function App() {
               <form onSubmit={handleSaveExpense} className="space-y-4">
                 <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 min-w-0">
                   <label className="text-emerald-700 text-sm font-semibold mb-1 block">金額 (NT$)</label>
+                  {/* 🚀 加入 inputMode="decimal" 與 pattern="[0-9]*" 強制喚醒純數字九宮格鍵盤 */}
                   <input type="number" inputMode="decimal" pattern="[0-9]*" name="amount" value={formData.amount ?? ''} onChange={handleFormChange} placeholder="0" required className="w-full bg-transparent text-4xl font-bold text-emerald-800 placeholder-emerald-300 outline-none font-mono min-w-0"/>
                 </div>
 
