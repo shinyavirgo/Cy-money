@@ -1060,8 +1060,9 @@ export default function App() {
         {/* 新增/編輯支出 Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity pointer-events-auto">
+            {/* 🚀 加入 transform-gpu 與 relative，強制 iOS 重新對齊點擊判定區域 (解決 Safari 下拉選單收起後的跑位 Bug) */}
             <div 
-              className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl overflow-y-auto max-h-[90dvh]"
+              className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl overflow-y-auto max-h-[90dvh] transform-gpu relative"
               style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
             >
               <div className="flex justify-between items-center mb-6">
