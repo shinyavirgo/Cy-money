@@ -1060,37 +1060,36 @@ export default function App() {
         {/* 新增/編輯支出 Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity pointer-events-auto">
-            {/* 🚀 加入 transform-gpu 與 relative，強制 iOS 重新對齊點擊判定區域 (解決 Safari 下拉選單收起後的跑位 Bug) */}
+            {/* 🚀 關鍵修正：將 max-h 改為強制固定高度 h-[92dvh]，讓視窗永遠保持最大展開，徹底解決 iOS 高度跳動導致的點擊跑位 */}
             <div 
-              className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl overflow-y-auto max-h-[90dvh] transform-gpu relative"
+              className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl overflow-y-auto h-[92dvh] md:h-auto md:max-h-[90dvh] transform-gpu relative flex flex-col"
               style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
             >
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex justify-between items-center mb-6 shrink-0">
                 <h2 className="text-2xl font-bold text-gray-800">{editingExpenseId ? '編輯明細' : '新增支出'}</h2>
-                <button onClick={() => setIsModalOpen(false)} className="p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200"><X size={20} /></button>
+                <button onClick={() => setIsModalOpen(false)} className="p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 shrink-0"><X size={20} /></button>
               </div>
 
-              <form onSubmit={handleSaveExpense} className="space-y-4">
-                <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 min-w-0">
+              <form onSubmit={handleSaveExpense} className="space-y-4 flex-1 flex flex-col">
+                <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 min-w-0 shrink-0">
                   <label className="text-emerald-700 text-sm font-semibold mb-1 block">金額 (NT$)</label>
-                  {/* 🚀 加入 inputMode="decimal" 與 pattern="[0-9]*" 強制喚醒純數字九宮格鍵盤 */}
                   <input type="number" inputMode="decimal" pattern="[0-9]*" name="amount" value={formData.amount ?? ''} onChange={handleFormChange} placeholder="0" required className="w-full bg-transparent text-4xl font-bold text-emerald-800 placeholder-emerald-300 outline-none font-mono min-w-0"/>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 shrink-0">
                   <div className="min-w-0"><label className="text-gray-600 text-sm font-medium mb-1 block truncate">日期</label><input type="date" name="date" value={formData.date ?? ''} onChange={handleFormChange} required className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 min-w-0"/></div>
                   <div className="min-w-0"><label className="text-gray-600 text-sm font-medium mb-1 block truncate">分類</label><select name="category" value={formData.category ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white min-w-0">{categories.map(cat => <option key={cat.id} value={cat.name} className="truncate">{cat.name}</option>)}</select></div>
                 </div>
 
-                <div className="min-w-0"><label className="text-gray-600 text-sm font-medium mb-1 block truncate">項目說明</label><input type="text" name="description" value={formData.description ?? ''} onChange={handleFormChange} placeholder="例如：午餐、搭捷運" required className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 min-w-0"/></div>
-                <hr className="border-gray-200" />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="min-w-0 shrink-0"><label className="text-gray-600 text-sm font-medium mb-1 block truncate">項目說明</label><input type="text" name="description" value={formData.description ?? ''} onChange={handleFormChange} placeholder="例如：午餐、搭捷運" required className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 min-w-0"/></div>
+                <hr className="border-gray-200 shrink-0" />
+                <div className="grid grid-cols-2 gap-3 shrink-0">
                   <div className="min-w-0"><label className="text-gray-600 text-sm font-medium mb-1 block truncate">銀行/支付</label><select name="bank" value={formData.bank ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white min-w-0">{sortedBankNames.map(bank => <option key={bank} value={bank} className="truncate">{bank}</option>)}</select></div>
                   <div className="min-w-0"><label className="text-gray-600 text-sm font-medium mb-1 block truncate">卡別</label><select name="card" value={formData.card ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white min-w-0">{bankCards[formData.bank]?.map(card => <option key={card.name} value={card.name} className="truncate">{card.name}</option>)}</select></div>
                 </div>
 
                 {bankCards[formData.bank]?.find(c => c.name === formData.card)?.rewards?.length > 0 && (
-                  <div>
+                  <div className="shrink-0 mb-4">
                     <label className="text-gray-600 text-sm font-medium mb-2 block flex items-center gap-1"><Gift size={16}/> 套用回饋項目</label>
                     <div className="flex flex-wrap gap-2">
                       {bankCards[formData.bank].find(c => c.name === formData.card).rewards.map(rule => {
@@ -1100,7 +1099,11 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                <button type="submit" className="w-full bg-emerald-600 text-white font-bold text-lg py-4 rounded-2xl mt-2 hover:bg-emerald-700 transition active:scale-95 flex items-center justify-center gap-2"><Check size={24} />{editingExpenseId ? '更新紀錄' : '儲存紀錄'}</button>
+                
+                {/* 🚀 mt-auto 讓儲存按鈕自動推到視窗最底端，版面更穩固 */}
+                <button type="submit" className="w-full bg-emerald-600 text-white font-bold text-lg py-4 rounded-2xl mt-auto hover:bg-emerald-700 transition active:scale-95 flex items-center justify-center gap-2 shrink-0">
+                  <Check size={24} />{editingExpenseId ? '更新紀錄' : '儲存紀錄'}
+                </button>
               </form>
             </div>
           </div>
