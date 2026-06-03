@@ -1062,7 +1062,7 @@ export default function App() {
           <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity pointer-events-auto">
             {/* 🚀 關鍵修正：將 max-h 改為強制固定高度 h-[92dvh]，讓視窗永遠保持最大展開，徹底解決 iOS 高度跳動導致的點擊跑位 */}
             <div 
-              className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl overflow-y-auto h-[92dvh] md:h-auto md:max-h-[90dvh] transform-gpu relative flex flex-col"
+              className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl overflow-y-auto h-[88dvh] md:h-auto md:max-h-[90dvh] transform-gpu relative flex flex-col"
               style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
             >
               <div className="flex justify-between items-center mb-6 shrink-0">
