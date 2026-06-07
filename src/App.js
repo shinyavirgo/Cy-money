@@ -1060,9 +1060,9 @@ export default function App() {
         {/* 新增/編輯支出 Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity pointer-events-auto">
-            {/* 🚀 關鍵修正：將 max-h 改為強制固定高度 h-[92dvh]，讓視窗永遠保持最大展開，徹底解決 iOS 高度跳動導致的點擊跑位 */}
+            {/* 🚀 關鍵修正：將固定高度 h-[92dvh] 改為 h-auto 自動包覆，解決過高問題 */}
             <div 
-              className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl overflow-y-auto h-[85dvh] md:h-auto md:max-h-[90dvh] transform-gpu relative flex flex-col"
+              className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl overflow-y-auto h-auto max-h-[92dvh] transform-gpu relative flex flex-col"
               style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
             >
               <div className="flex justify-between items-center mb-6 shrink-0">
@@ -1088,20 +1088,27 @@ export default function App() {
                   <div className="min-w-0"><label className="text-gray-600 text-sm font-medium mb-1 block truncate">卡別</label><select name="card" value={formData.card ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white min-w-0">{bankCards[formData.bank]?.map(card => <option key={card.name} value={card.name} className="truncate">{card.name}</option>)}</select></div>
                 </div>
 
-                {bankCards[formData.bank]?.find(c => c.name === formData.card)?.rewards?.length > 0 && (
-                  <div className="shrink-0 mb-4">
-                    <label className="text-gray-600 text-sm font-medium mb-2 block flex items-center gap-1"><Gift size={16}/> 套用回饋項目</label>
-                    <div className="flex flex-wrap gap-2">
-                      {bankCards[formData.bank].find(c => c.name === formData.card).rewards.map(rule => {
-                        const isSelected = formData.appliedRewards.includes(rule.id);
-                        return (<div key={rule.id} onClick={() => toggleRewardRule(rule.id)} className={`cursor-pointer px-3 py-1.5 rounded-full border text-xs font-bold transition select-none ${isSelected ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>{rule.name} {rule.type === 'cashback' ? `${rule.rate}%` : `(送${rule.unit})`}</div>)
-                      })}
+                {/* 🚀 預留固定空間，確保內容有或沒有回饋時，視窗總高度不變，徹底解決 iOS 點擊跑位 */}
+                <div className="shrink-0 min-h-[5.5rem] mt-2 mb-2">
+                  {bankCards[formData.bank]?.find(c => c.name === formData.card)?.rewards?.length > 0 ? (
+                    <div>
+                      <label className="text-gray-600 text-sm font-medium mb-2 block flex items-center gap-1"><Gift size={16}/> 套用回饋項目</label>
+                      <div className="flex flex-wrap gap-2">
+                        {bankCards[formData.bank].find(c => c.name === formData.card).rewards.map(rule => {
+                          const isSelected = formData.appliedRewards.includes(rule.id);
+                          return (<div key={rule.id} onClick={() => toggleRewardRule(rule.id)} className={`cursor-pointer px-3 py-1.5 rounded-full border text-xs font-bold transition select-none ${isSelected ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>{rule.name} {rule.type === 'cashback' ? `${rule.rate}%` : `(送${rule.unit})`}</div>)
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="pt-6">
+                      <div className="text-center text-xs text-gray-400 py-3 border border-dashed border-gray-200 rounded-xl bg-gray-50">此卡片無設定特殊回饋</div>
+                    </div>
+                  )}
+                </div>
                 
-                {/* 🚀 mt-auto 讓儲存按鈕自動推到視窗最底端，版面更穩固 */}
-                <button type="submit" className="w-full bg-emerald-600 text-white font-bold text-lg py-4 rounded-2xl mt-auto hover:bg-emerald-700 transition active:scale-95 flex items-center justify-center gap-2 shrink-0">
+                {/* 移除 mt-auto，讓儲存按鈕自然貼合內容 */}
+                <button type="submit" className="w-full bg-emerald-600 text-white font-bold text-lg py-4 rounded-2xl hover:bg-emerald-700 transition active:scale-95 flex items-center justify-center gap-2 shrink-0">
                   <Check size={24} />{editingExpenseId ? '更新紀錄' : '儲存紀錄'}
                 </button>
               </form>
