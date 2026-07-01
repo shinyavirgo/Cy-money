@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, signInAnonymously, signInWithCustomToken, linkWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { 
   Plus, List, PieChart, CreditCard, Calendar, Trash2, X, Check, Utensils, Shirt, Home, Car, BookOpen, Gamepad2, 
@@ -47,7 +47,7 @@ const ICON_MAP = {
 const AVAILABLE_ICONS = Object.keys(ICON_MAP);
 
 // ==========================================
-// 2. Firebase 初始化
+// 2. Firebase 初始化 (🚀 修正：強制綁死您的 cy-card 專案)
 // ==========================================
 let app, auth, db, appId;
 try {
@@ -63,7 +63,7 @@ try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
-  appId = firebaseConfig.projectId;
+  appId = "cy-card"; // 固定路徑，保證不管在哪裡開，讀的都是同一包資料
 } catch (error) {
   console.error("Firebase init failed:", error);
 }
@@ -84,7 +84,6 @@ const getBillingCycleDates = (viewYear, viewMonthNum, billingDayStr) => {
   return { startStr: formatDate(startDate), endStr: formatDate(endDate), cycleLabel: `${startDate.getMonth()+1}/${startDate.getDate()} ~ ${endDate.getMonth()+1}/${endDate.getDate()}` };
 };
 
-// 💡 清除所有會引起混淆的 padding css class
 const GlobalStyles = () => (
   <style dangerouslySetInnerHTML={{__html: `
     html, body, #root {
@@ -134,6 +133,7 @@ export default function App() {
   const fileInputRef = useRef(null);
   const [expenseToDelete, setExpenseToDelete] = useState(null);
   const [showUnusedCards, setShowUnusedCards] = useState(false);
+  const [sysMessage, setSysMessage] = useState(null); // 新增：取代被阻擋的 window.confirm 與 alert
 
   useEffect(() => {
     try {
@@ -154,37 +154,71 @@ export default function App() {
     });
   }, [bankCards]);
 
+  // 🚀 修正 Auth 機制，穩定抓取帳號狀態
   useEffect(() => {
     if (!auth) return;
-    let initAttempted = false;
     const initAuth = async () => {
-      initAttempted = true;
       try {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
           try { await signInWithCustomToken(auth, __initial_auth_token); } catch (tokenErr) { await signInAnonymously(auth); }
         } else { await signInAnonymously(auth); }
-      } catch (err) { } finally { setIsLoading(false); }
+      } catch (err) { console.warn("登入初始化失敗:", err); } 
     };
+
+    initAuth();
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) { setUser(currentUser); setIsLoading(false); } else { setUser(null); if (!initAttempted) initAuth(); else setIsLoading(false); }
+      setUser(currentUser); 
+      setIsLoading(false); 
     });
     return () => unsubscribe();
   }, []);
 
   const handleAuthSubmit = async (e, isRegistering) => {
-    e.preventDefault(); if (!authEmail || !authPassword) return;
-    setAuthError(''); setIsLoading(true);
+    e.preventDefault(); 
+    if (!authEmail || !authPassword) return;
+    setAuthError(''); 
+    setIsLoading(true);
+    
     try {
-      if (isRegistering) { await createUserWithEmailAndPassword(auth, authEmail, authPassword); alert('註冊成功！'); } 
-      else { await signInWithEmailAndPassword(auth, authEmail, authPassword); alert('登入成功！'); }
-      setAuthEmail(''); setAuthPassword('');
-    } catch (error) { setAuthError('帳號或密碼錯誤，或是此信箱已被註冊'); } finally { setIsLoading(false); }
+      if (isRegistering) {
+        if (auth.currentUser && auth.currentUser.isAnonymous) {
+          const credential = EmailAuthProvider.credential(authEmail, authPassword);
+          await linkWithCredential(auth.currentUser, credential);
+          setSysMessage({ type: 'alert', title: '成功', text: '註冊並綁定成功！\n您原本的訪客資料已成功過戶至此 Email 帳號。' });
+        } else {
+          await createUserWithEmailAndPassword(auth, authEmail, authPassword);
+          setSysMessage({ type: 'alert', title: '成功', text: '註冊成功！' });
+        }
+      } else {
+        await signInWithEmailAndPassword(auth, authEmail, authPassword);
+        setSysMessage({ type: 'alert', title: '成功', text: '登入成功！已為您載入雲端資料。' });
+      }
+      setAuthEmail(''); 
+      setAuthPassword('');
+    } catch (error) {
+      console.error("Auth error:", error);
+      if (error.code === 'auth/credential-already-in-use' || error.code === 'auth/email-already-in-use') {
+        setAuthError('此信箱已被註冊過囉！如果您曾註冊過，請直接點擊左邊的「登入帳號」。');
+      } else {
+        setAuthError('帳號或密碼錯誤，請確認輸入是否正確。密碼需至少6位數。');
+      }
+    } finally { 
+      setIsLoading(false); 
+    }
   };
 
   const handleLogout = async () => {
-    if (window.confirm('確定要登出嗎？')) {
-      await signOut(auth); setExpenses([]); setCategories(DEFAULT_CATEGORIES); setBankCards(DEFAULT_BANK_CARDS); setWebhookUrl(''); setActiveTab('list');
-    }
+    setSysMessage({
+      type: 'confirm',
+      title: '確定要登出嗎？',
+      text: '將會切換回空白的訪客模式。\n(若您剛才誤按登入導致資料消失，登出通常能找回舊資料)',
+      onConfirm: async () => {
+        await signOut(auth); 
+        await signInAnonymously(auth); // 確保登出後立刻配發新的訪客身分
+        setExpenses([]); setCategories(DEFAULT_CATEGORIES); setBankCards(DEFAULT_BANK_CARDS); setWebhookUrl(''); setActiveTab('list');
+      }
+    });
   };
 
   useEffect(() => {
@@ -217,10 +251,8 @@ export default function App() {
                  return { ...card, rewards: newRewards, iconName: card.iconName || defaultCard?.iconName || 'CreditCard', color: card.color || defaultCard?.color || 'bg-gray-100 text-gray-600', rewardCycle: card.rewardCycle || defaultCard?.rewardCycle || 'calendar', limit: card.limit !== undefined ? card.limit : (defaultCard?.limit || null) };
                });
              });
-             Object.keys(DEFAULT_BANK_CARDS).forEach(defaultBank => {
-               if (!migratedBanks[defaultBank]) migratedBanks[defaultBank] = DEFAULT_BANK_CARDS[defaultBank];
-               else { DEFAULT_BANK_CARDS[defaultBank].forEach(defCard => { if (!migratedBanks[defaultBank].find(c => c.name === defCard.name)) migratedBanks[defaultBank].push(defCard); }); }
-             });
+             
+             // 修正 Bug: 移除了「自動將缺少的預設卡片塞回清單」的邏輯，這樣刪除卡片後就不會重新復活
              setBankCards(migratedBanks);
           }
         }
@@ -229,6 +261,7 @@ export default function App() {
     };
     loadSettings();
 
+    // 🚀 關鍵修復：加入錯誤攔截，如果發生 permission-denied 就不會當機
     const unsubscribe = onSnapshot(collection(db, 'artifacts', appId, 'users', user.uid, 'expenses'), (snapshot) => {
       const data = [];
       snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
@@ -238,20 +271,24 @@ export default function App() {
         return (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0);
       });
       setExpenses(data);
+    }, (error) => {
+      console.warn("資料庫讀取遭拒，請至 Firebase 設定 Rules 權限:", error);
     });
     return () => unsubscribe();
   }, [user]);
 
   const saveSettingsToCloud = async (newCategories, newBankCards) => {
     if (!user || !db) return;
-    await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'userConfig'), { categories: newCategories, bankCards: newBankCards, updatedAt: new Date().toISOString() }, { merge: true });
+    try {
+      await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'userConfig'), { categories: newCategories, bankCards: newBankCards, updatedAt: new Date().toISOString() }, { merge: true });
+    } catch(e) { console.warn("設定寫入失敗", e); }
   };
 
-  const { filteredExpenses, totalMonth, bankTotals, cardTotals, estimatedCashback, estimatedPoints, rewardLimitTracking, bankRewards } = useMemo(() => {
+  const { filteredExpenses, totalMonth, bankTotals, bankCardTotals, cardTotals, estimatedCashback, estimatedPoints, rewardLimitTracking, bankRewards } = useMemo(() => {
     const filtered = expenses.filter(exp => exp.date.startsWith(currentMonth));
     let total = 0; filtered.forEach(exp => { total += parseFloat(exp.amount) || 0; });
     const [viewYear, viewMonth] = currentMonth.split('-').map(Number);
-    const bnkTotals = {}; const crdTotals = {}; const tracking = []; let finalCashback = 0; const finalPoints = {}; const bRewards = {};
+    const bnkTotals = {}; const crdTotals = {}; const bnkCrdTotals = {}; const tracking = []; let finalCashback = 0; const finalPoints = {}; const bRewards = {};
 
     Object.keys(bankCards).forEach(b => { bRewards[b] = { cashback: 0, points: {} }; });
 
@@ -269,7 +306,11 @@ export default function App() {
         expenses.forEach(exp => {
           if (exp.bank === bankName && exp.card === cardInfo.name && exp.date >= billStartStr && exp.date <= billEndStr) {
             const amt = parseFloat(exp.amount) || 0;
-            bnkTotals[bankName] = (bnkTotals[bankName] || 0) + amt; crdTotals[cardInfo.name] = (crdTotals[cardInfo.name] || 0) + amt;
+            bnkTotals[bankName] = (bnkTotals[bankName] || 0) + amt; 
+            crdTotals[cardInfo.name] = (crdTotals[cardInfo.name] || 0) + amt;
+            
+            if(!bnkCrdTotals[bankName]) bnkCrdTotals[bankName] = {};
+            bnkCrdTotals[bankName][cardInfo.name] = (bnkCrdTotals[bankName][cardInfo.name] || 0) + amt;
           }
         });
 
@@ -312,7 +353,11 @@ export default function App() {
       const cardInfo = (bankCards[exp.bank] || []).find(c => c.name === exp.card);
       if (!cardInfo) {
         const amt = parseFloat(exp.amount) || 0;
-        bnkTotals[exp.bank] = (bnkTotals[exp.bank] || 0) + amt; crdTotals[exp.card] = (crdTotals[exp.card] || 0) + amt;
+        bnkTotals[exp.bank] = (bnkTotals[exp.bank] || 0) + amt; 
+        crdTotals[exp.card] = (crdTotals[exp.card] || 0) + amt;
+        
+        if(!bnkCrdTotals[exp.bank]) bnkCrdTotals[exp.bank] = {};
+        bnkCrdTotals[exp.bank][exp.card] = (bnkCrdTotals[exp.bank][exp.card] || 0) + amt;
       }
     });
 
@@ -324,6 +369,7 @@ export default function App() {
         const dayB = extractBillingDay(bankCards[b[0]]?.[0]?.billing);
         if (dayA !== dayB) return dayA - dayB; return b[1] - a[1];
       }).filter(entry => entry[1] > 0 || (bankCards[entry[0]] && bankCards[entry[0]].length > 0)), 
+      bankCardTotals: bnkCrdTotals,
       cardTotals: crdTotals,
       estimatedCashback: Math.round(finalCashback), estimatedPoints: Object.entries(finalPoints).map(([u, p]) => [u, Math.round(p)]),
       rewardLimitTracking: tracking.sort((a, b) => (b.spent / b.limit) - (a.spent / a.limit)),
@@ -581,7 +627,7 @@ export default function App() {
       <div className="w-full max-w-md bg-gray-50 relative flex flex-col h-full shadow-2xl overflow-hidden">
         
         {/* ========================================== */}
-        {/* [固定] 頂部標題 Header - 推向極限動態島 */}
+        {/* [固定] 頂部標題 Header */}
         {/* ========================================== */}
         {activeTab !== 'settings' ? (
           <header 
@@ -607,12 +653,12 @@ export default function App() {
           >
             <div className="flex justify-between items-center px-2 mt-1">
               <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Settings size={28} className="text-emerald-600" /> 系統設定</h2>
-              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.1.7 (終極版)</span>
+              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2.5 py-1 rounded-full shadow-sm border border-emerald-200 tracking-wider">v1.3.0</span>
             </div>
           </header>
         )}
 
-        {/* [獨立滑動] 中間內容區塊 - 預留給加號的捲動空間 */}
+        {/* [獨立滑動] 中間內容區塊 */}
         <main 
           className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 custom-scrollbar z-0 relative"
           style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}
@@ -804,6 +850,7 @@ export default function App() {
                     const BankIcon = ICON_MAP[firstCard?.iconName] || CreditCard;
                     const bColor = firstCard?.color || 'bg-gray-100 text-gray-600';
                     const rewards = bankRewards[bankName];
+                    const cardsInBank = bankCardTotals[bankName] || {};
                     
                     return (
                       <div key={bankName} className="flex flex-col p-3 bg-gray-50 rounded-xl border border-transparent hover:border-gray-200 transition">
@@ -817,6 +864,26 @@ export default function App() {
                           </div>
                           <span className="font-mono font-bold text-gray-800 text-lg">${amount.toLocaleString()}</span>
                         </div>
+                        
+                        {Object.keys(cardsInBank).length > 0 && (
+                          <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-gray-200/60">
+                            {Object.entries(cardsInBank).map(([cName, cAmt]) => {
+                              const cInfo = (bankCards[bankName] || []).find(c => c.name === cName);
+                              const CIcon = ICON_MAP[cInfo?.iconName] || CreditCard;
+                              const cTextColor = cInfo?.color?.split(' ').find(c => c.startsWith('text-')) || 'text-gray-500';
+                              return (
+                                <div key={cName} className="flex justify-between items-center text-sm pl-1 pr-1">
+                                   <div className="flex items-center gap-1.5 text-gray-600">
+                                     <CIcon size={12} className={cTextColor} />
+                                     <span>{cName}</span>
+                                   </div>
+                                   <span className="font-mono text-gray-600 text-[13px]">${cAmt.toLocaleString()}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+
                         {rewards && (rewards.cashback > 0 || Object.keys(rewards.points).length > 0) && (
                           <div className="flex flex-wrap items-center gap-2 pt-2 mt-2 border-t border-gray-200/60">
                             <span className="text-[11px] font-bold text-yellow-600 flex items-center gap-1"><Gift size={12} />本期預估賺取:</span>
@@ -847,12 +914,12 @@ export default function App() {
                        <div className="flex gap-2">
                          <input type="url" placeholder="https://hook.us1.make.com/..." value={webhookUrl} onChange={(e) => { setWebhookUrl(e.target.value); setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'userConfig'), { webhookUrl: e.target.value }, { merge: true }); }} className="w-full border border-gray-300 rounded px-2 py-2 text-sm outline-none focus:border-emerald-500 focus:bg-white transition bg-gray-50 min-w-0" />
                          <button disabled={isTestingWebhook} onClick={async () => {
-                             if (!webhookUrl || !webhookUrl.trim().startsWith('http')) return alert("請先輸入有效的 Webhook 網址 (需包含 https://)");
+                             if (!webhookUrl || !webhookUrl.trim().startsWith('http')) return setSysMessage({ type: 'alert', title: '錯誤', text: "請先輸入有效的 Webhook 網址 (需包含 https://)" });
                              setIsTestingWebhook(true);
                              try {
                                const res = await fetch(webhookUrl.trim(), { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ date: new Date().toISOString().slice(0, 10), amount: 100, description: "Webhook 測試成功！", category: "測試", bank: "測試銀行", card: "測試卡片", rewardDetails: "國內基本 1%" }) });
-                               if (res.ok) alert("🚀 測試發送成功！請查看是否有收到資料。"); else alert("發送失敗，狀態碼: " + res.status);
-                             } catch (e) { alert("網路發送錯誤！\n錯誤訊息: " + e.message); } finally { setIsTestingWebhook(false); }
+                               if (res.ok) setSysMessage({ type: 'alert', title: '成功', text: "🚀 測試發送成功！請查看是否有收到資料。" }); else setSysMessage({ type: 'alert', title: '失敗', text: "發送失敗，狀態碼: " + res.status });
+                             } catch (e) { setSysMessage({ type: 'alert', title: '錯誤', text: "網路發送錯誤！\n錯誤訊息: " + e.message }); } finally { setIsTestingWebhook(false); }
                            }} 
                            className="bg-emerald-100 text-emerald-700 px-3 rounded text-xs font-bold hover:bg-emerald-200 whitespace-nowrap transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                          > {isTestingWebhook ? '發送中...' : '測試發送'} </button>
@@ -925,7 +992,14 @@ export default function App() {
                   <div className="flex gap-2 mb-4">
                     <input type="text" placeholder="新增銀行" value={newBankName ?? ''} onChange={(e) => setNewBankName(e.target.value)} className="flex-1 min-w-0 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"/>
                     <button onClick={() => {if(newBankName.trim() && !bankCards[newBankName.trim()]){ setBankCards({...bankCards, [newBankName.trim()]: []}); setNewBankName(''); }}} className="bg-emerald-100 text-emerald-700 px-3 rounded-xl hover:bg-emerald-200 font-medium shrink-0">新增</button>
-                    <button onClick={() => {if(window.confirm('確定要還原為系統最新預設？(這會覆蓋自訂卡片)')){ setBankCards(DEFAULT_BANK_CARDS); saveSettingsToCloud(categories, DEFAULT_BANK_CARDS); }}} className="bg-red-50 text-red-600 px-3 rounded-xl hover:bg-red-100 font-medium shrink-0">還原預設</button>
+                    <button onClick={() => {
+                      setSysMessage({
+                        type: 'confirm',
+                        title: '還原預設',
+                        text: '確定要還原為系統最新預設？\n(注意：這會覆蓋並清除所有您自訂的卡片與回饋)',
+                        onConfirm: () => { setBankCards(DEFAULT_BANK_CARDS); saveSettingsToCloud(categories, DEFAULT_BANK_CARDS); }
+                      });
+                    }} className="bg-red-50 text-red-600 px-3 rounded-xl hover:bg-red-100 font-medium shrink-0">還原預設</button>
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -937,7 +1011,15 @@ export default function App() {
                         <span className="font-bold text-gray-700 flex items-center gap-2"><div className={`w-6 h-6 rounded-full flex items-center justify-center ${cards[0]?.color || 'bg-gray-200 text-gray-600'}`}>{React.createElement(ICON_MAP[cards[0]?.iconName] || Landmark, { size: 12 })}</div>{bankName}</span>
                         <div className="flex items-center gap-2">
                           <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">{cards.length} 張卡</span>
-                          <button onClick={(e) => { e.stopPropagation(); if(window.confirm('確定刪除此銀行？')){const nb = {...bankCards}; delete nb[bankName]; setBankCards(nb); saveSettingsToCloud(categories, nb);}}} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={16}/></button>
+                          <button onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setSysMessage({
+                              type: 'confirm',
+                              title: '刪除銀行',
+                              text: `確定要刪除「${bankName}」及其底下的所有卡片嗎？`,
+                              onConfirm: () => { const nb = {...bankCards}; delete nb[bankName]; setBankCards(nb); saveSettingsToCloud(categories, nb); }
+                            });
+                          }} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={16}/></button>
                         </div>
                       </div>
                       
@@ -946,7 +1028,7 @@ export default function App() {
                           {cards.map((card, idx) => {
                             const CardIcon = ICON_MAP[card.iconName] || CreditCard;
                             return (
-                            <div key={idx}>
+                            <div key={`${bankName}-${card.name}-${idx}`}>
                               {editingCardKey === `${bankName}-${idx}` ? (
                                 <div className="p-3 bg-emerald-50/50 border border-emerald-200 rounded-xl space-y-3 relative">
                                   <button onClick={() => setEditingCardKey(null)} className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"><X size={18}/></button>
@@ -987,7 +1069,24 @@ export default function App() {
                                       {(!card.rewards || card.rewards.length === 0) && <span className="text-[10px] text-gray-400">無回饋</span>}
                                     </div>
                                   </div>
-                                  <div className="flex gap-1 shrink-0"><button onClick={() => openCardForm(bankName, card, idx)} className="text-gray-400 hover:text-emerald-600 p-1 bg-gray-50 rounded"><Edit2 size={16}/></button></div>
+                                  <div className="flex gap-1 shrink-0">
+                                    <button onClick={() => openCardForm(bankName, card, idx)} className="text-gray-400 hover:text-emerald-600 p-1.5 bg-gray-50 rounded hover:bg-emerald-50 transition"><Edit2 size={16}/></button>
+                                    <button type="button" onClick={(e) => { 
+                                      e.preventDefault();
+                                      e.stopPropagation(); 
+                                      setSysMessage({
+                                        type: 'confirm',
+                                        title: '刪除卡片',
+                                        text: `確定要刪除「${card.name}」嗎？此動作無法復原。`,
+                                        onConfirm: () => {
+                                          const updated = { ...bankCards };
+                                          updated[bankName] = updated[bankName].filter((_, i) => i !== idx);
+                                          setBankCards(updated);
+                                          saveSettingsToCloud(categories, updated);
+                                        }
+                                      });
+                                    }} className="text-gray-400 hover:text-red-500 p-1.5 bg-gray-50 rounded hover:bg-red-50 transition"><Trash2 size={16}/></button>
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -1027,7 +1126,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 🚀 懸浮新增按鈕 (FAB) - 綁定最嚴格的推算邏輯 */}
+        {/* 🚀 懸浮新增按鈕 (FAB) */}
         <button 
           onClick={() => openExpenseModal()} 
           className="absolute right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-emerald-700 transition-all z-30"
@@ -1036,7 +1135,7 @@ export default function App() {
           <Plus size={30} />
         </button>
 
-        {/* 🚀 底部導覽列 - 將所有的 padding-bottom 拔除，回歸純淨 */}
+        {/* 🚀 底部導覽列 */}
         <div 
           className="w-full bg-white border-t border-gray-200 z-20 shrink-0"
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
@@ -1060,7 +1159,6 @@ export default function App() {
         {/* 新增/編輯支出 Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-end md:items-center backdrop-blur-sm p-0 md:p-4 transition-opacity pointer-events-auto">
-            {/* 🚀 關鍵修正：將固定高度 h-[92dvh] 改為 h-auto 自動包覆，解決過高問題 */}
             <div 
               className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl overflow-y-auto h-auto max-h-[92dvh] transform-gpu relative flex flex-col"
               style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
@@ -1088,7 +1186,7 @@ export default function App() {
                   <div className="min-w-0"><label className="text-gray-600 text-sm font-medium mb-1 block truncate">卡別</label><select name="card" value={formData.card ?? ''} onChange={handleFormChange} className="w-full border border-gray-300 rounded-xl p-3 text-[16px] outline-none focus:border-emerald-500 bg-white min-w-0">{bankCards[formData.bank]?.map(card => <option key={card.name} value={card.name} className="truncate">{card.name}</option>)}</select></div>
                 </div>
 
-                {/* 🚀 預留固定空間，確保內容有或沒有回饋時，視窗總高度不變，徹底解決 iOS 點擊跑位 */}
+                {/* 預留固定空間 */}
                 <div className="shrink-0 min-h-[5.5rem] mt-2 mb-2">
                   {bankCards[formData.bank]?.find(c => c.name === formData.card)?.rewards?.length > 0 ? (
                     <div>
@@ -1107,7 +1205,6 @@ export default function App() {
                   )}
                 </div>
                 
-                {/* 移除 mt-auto，讓儲存按鈕自然貼合內容 */}
                 <button type="submit" className="w-full bg-emerald-600 text-white font-bold text-lg py-4 rounded-2xl hover:bg-emerald-700 transition active:scale-95 flex items-center justify-center gap-2 shrink-0">
                   <Check size={24} />{editingExpenseId ? '更新紀錄' : '儲存紀錄'}
                 </button>
@@ -1135,6 +1232,31 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {/* 系統提示訊息 Modal (取代 window.confirm / alert) */}
+        {sysMessage && (
+          <div className="fixed inset-0 bg-black/60 z-[80] flex justify-center items-center backdrop-blur-sm p-4 transition-opacity pointer-events-auto">
+            <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${sysMessage.type === 'confirm' ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                {sysMessage.type === 'confirm' ? <AlertCircle size={32} /> : <Check size={32} />}
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">{sysMessage.title}</h3>
+              <p className="text-sm text-gray-500 mb-6 whitespace-pre-line leading-relaxed">{sysMessage.text}</p>
+              <div className="flex gap-3 w-full">
+                {sysMessage.type === 'confirm' && (
+                  <button onClick={() => setSysMessage(null)} className="flex-1 bg-gray-100 text-gray-700 py-3.5 rounded-xl font-bold hover:bg-gray-200 transition active:scale-95">取消</button>
+                )}
+                <button onClick={() => { 
+                  if(sysMessage.onConfirm) sysMessage.onConfirm(); 
+                  setSysMessage(null); 
+                }} className={`flex-1 text-white py-3.5 rounded-xl font-bold transition active:scale-95 ${sysMessage.type === 'confirm' ? 'bg-orange-500 hover:bg-orange-600 shadow-orange-200' : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200'} shadow-md`}>
+                  {sysMessage.type === 'confirm' ? '確定' : '我知道了'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
