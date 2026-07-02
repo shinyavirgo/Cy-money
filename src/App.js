@@ -284,9 +284,16 @@ export default function App() {
     } catch(e) { console.warn("設定寫入失敗", e); }
   };
 
-  const { filteredExpenses, totalMonth, bankTotals, bankCardTotals, cardTotals, estimatedCashback, estimatedPoints, rewardLimitTracking, bankRewards } = useMemo(() => {
+  const { filteredExpenses, totalMonth, bankTotals, bankCardTotals, cardTotals, calendarCardTotals, estimatedCashback, estimatedPoints, rewardLimitTracking, bankRewards } = useMemo(() => {
     const filtered = expenses.filter(exp => exp.date.startsWith(currentMonth));
-    let total = 0; filtered.forEach(exp => { total += parseFloat(exp.amount) || 0; });
+    let total = 0; 
+    const calCrdTotals = {}; // 嚴格日曆月加總，用來判斷「卡片額度區塊」要不要顯示
+
+    filtered.forEach(exp => { 
+      total += parseFloat(exp.amount) || 0; 
+      calCrdTotals[exp.card] = (calCrdTotals[exp.card] || 0) + (parseFloat(exp.amount) || 0);
+    });
+
     const [viewYear, viewMonth] = currentMonth.split('-').map(Number);
     const bnkTotals = {}; const crdTotals = {}; const bnkCrdTotals = {}; const tracking = []; let finalCashback = 0; const finalPoints = {}; const bRewards = {};
 
@@ -294,6 +301,7 @@ export default function App() {
 
     Object.entries(bankCards).forEach(([bankName, cards]) => {
       cards.forEach(cardInfo => {
+        // 1. 恢復對帳單 (結帳週期) 總計邏輯
         let billStartStr, billEndStr;
         if (cardInfo.billing !== '無') {
           const cycleInfo = getBillingCycleDates(viewYear, viewMonth, cardInfo.billing);
@@ -327,10 +335,16 @@ export default function App() {
 
         cardInfo.rewards.forEach(rule => {
           let cycleSpent = 0;
+          // 為了準確計算「上限」，我們還是得去抓整個週期 (可能包含上個月) 的消費
           expenses.forEach(exp => {
             if (exp.bank === bankName && exp.card === cardInfo.name && exp.date >= rewardStartStr && exp.date <= rewardEndStr && exp.appliedRewards?.includes(rule.id)) cycleSpent += (parseFloat(exp.amount) || 0);
           });
-          if (rule.limit) tracking.push({ cardName: cardInfo.name, ruleName: rule.name, spent: cycleSpent, limit: rule.limit, cycleLabel: label });
+          let rateText = rule.type === 'cashback' ? `${rule.rate}%` : `滿${rule.spend}送${rule.earn}${rule.unit}`;
+          
+          if (cycleSpent > 0) {
+            tracking.push({ cardName: cardInfo.name, ruleName: rule.name, spent: cycleSpent, limit: rule.limit, cycleLabel: label, rateText });
+          }
+          
           let cappedSpent = rule.limit ? Math.min(cycleSpent, rule.limit) : cycleSpent;
 
           if (cappedSpent > 0) {
@@ -349,6 +363,7 @@ export default function App() {
       });
     });
 
+    // 針對完全沒有在上方匹配到的卡片或現金，給予日曆月 fallback
     filtered.forEach(exp => {
       const cardInfo = (bankCards[exp.bank] || []).find(c => c.name === exp.card);
       if (!cardInfo) {
@@ -371,8 +386,14 @@ export default function App() {
       }).filter(entry => entry[1] > 0 || (bankCards[entry[0]] && bankCards[entry[0]].length > 0)), 
       bankCardTotals: bnkCrdTotals,
       cardTotals: crdTotals,
+      calendarCardTotals: calCrdTotals,
       estimatedCashback: Math.round(finalCashback), estimatedPoints: Object.entries(finalPoints).map(([u, p]) => [u, Math.round(p)]),
-      rewardLimitTracking: tracking.sort((a, b) => (b.spent / b.limit) - (a.spent / a.limit)),
+      rewardLimitTracking: tracking.sort((a, b) => {
+        const aRatio = a.limit ? (a.spent / a.limit) : -1;
+        const bRatio = b.limit ? (b.spent / b.limit) : -1;
+        if (bRatio !== aRatio) return bRatio - aRatio;
+        return b.spent - a.spent;
+      }),
       bankRewards: bRewards
     };
   }, [expenses, currentMonth, bankCards]);
@@ -738,17 +759,17 @@ export default function App() {
                     const cardsToTrack = Object.values(bankCards).flat().filter(card => {
                       const hasCreditLimit = card.limit !== null;
                       const hasRewardLimit = rewardLimitTracking.some(t => t.cardName === card.name);
-                      return hasCreditLimit || hasRewardLimit;
+                      const hasRewards = card.rewards && card.rewards.length > 0;
+                      return hasCreditLimit || hasRewardLimit || hasRewards;
                     }).sort((a, b) => extractBillingDay(a.billing) - extractBillingDay(b.billing));
 
                     if (cardsToTrack.length === 0) return <p className="text-sm text-gray-400 text-center py-2">尚無需要追蹤的額度或回饋</p>;
 
-                    const usedCards = []; const unusedCards = [];
+                    const usedCards = []; 
                     cardsToTrack.forEach(card => {
-                      const cardTracking = rewardLimitTracking.filter(t => t.cardName === card.name);
-                      const usedAmount = cardTotals[card.name] || 0;
-                      const hasTrackingSpent = cardTracking.some(t => t.spent > 0);
-                      if (usedAmount > 0 || hasTrackingSpent) usedCards.push(card); else unusedCards.push(card);
+                      const usedInCalendar = calendarCardTotals[card.name] || 0;
+                      // 只要「本曆月」有刷卡動作，才顯示這個區塊 (解決跨月幽靈卡片問題)
+                      if (usedInCalendar > 0) usedCards.push(card);
                     });
 
                     const renderCard = (card) => {
@@ -763,10 +784,21 @@ export default function App() {
                           <div className="flex items-start gap-3">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 ${cColor}`}><CardIcon size={14}/></div>
                             <div className="flex-1 space-y-2 min-w-0">
-                              <span className="font-bold text-gray-800 text-sm block truncate">
-                                {card.name}
-                                {card.billing && card.billing !== '無' && <span className="text-[10px] text-gray-400 ml-2 font-normal">結帳日: {card.billing}</span>}
-                              </span>
+                              <div>
+                                <span className="font-bold text-gray-800 text-sm block truncate">
+                                  {card.name}
+                                  {card.billing && card.billing !== '無' && <span className="text-[10px] text-gray-400 ml-2 font-normal">結帳日: {card.billing}</span>}
+                                </span>
+                                {card.rewards && card.rewards.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                    {card.rewards.map((r, i) => (
+                                      <span key={i} className={`text-[10px] font-medium px-1.5 py-[1px] rounded border ${r.type === 'cashback' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-indigo-700 bg-indigo-50 border-indigo-100'}`}>
+                                        {r.name} {r.type === 'cashback' ? `${r.rate}%` : `滿${r.spend}送${r.earn}${r.unit}`}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                               
                               {hasCreditLimit && (
                                 <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 mt-1">
@@ -789,27 +821,34 @@ export default function App() {
                               {cardTracking.length > 0 && (
                                 <div className="space-y-2 mt-2">
                                   {cardTracking.map((track, idx) => {
-                                    const remaining = Math.max(0, track.limit - track.spent);
-                                    const percentage = Math.min(100, Math.round((track.spent / track.limit) * 100)) || 0;
-                                    const isMaxedOut = track.spent >= track.limit;
+                                    const hasLimit = track.limit > 0;
+                                    const remaining = hasLimit ? Math.max(0, track.limit - track.spent) : 0;
+                                    const percentage = hasLimit ? Math.min(100, Math.round((track.spent / track.limit) * 100)) || 0 : 0;
+                                    const isMaxedOut = hasLimit ? track.spent >= track.limit : false;
+                                    
                                     return (
-                                      <div key={idx} className="bg-orange-50/60 rounded-xl p-3 border border-orange-100/50">
+                                      <div key={idx} className={`rounded-xl p-3 border ${hasLimit ? 'bg-orange-50/60 border-orange-100/50' : 'bg-blue-50/60 border-blue-100/50'}`}>
                                         <div className="flex justify-between items-start mb-1.5 gap-1">
                                           <div className="min-w-0">
-                                            <span className="font-bold text-orange-800 block text-[11px] truncate">🎁 {track.ruleName}</span>
-                                            <span className="text-[9px] text-orange-500/80 truncate block">{track.cycleLabel}</span>
+                                            <span className={`font-bold text-[11px] flex items-center gap-1 flex-wrap ${hasLimit ? 'text-orange-800' : 'text-blue-800'}`}>
+                                              <span>🎁 {track.ruleName}</span>
+                                              <span className={`px-1 rounded font-mono text-[9px] whitespace-nowrap ${hasLimit ? 'bg-orange-200/70 text-orange-700' : 'bg-blue-200/70 text-blue-700'}`}>{track.rateText}</span>
+                                            </span>
+                                            <span className={`text-[9px] truncate block mt-0.5 ${hasLimit ? 'text-orange-500/80' : 'text-blue-500/80'}`}>{track.cycleLabel}</span>
                                           </div>
-                                          <span className="text-[10px] text-orange-600/70 font-mono shrink-0">
-                                            上限 ${track.limit.toLocaleString()}
+                                          <span className={`text-[10px] font-mono shrink-0 pt-0.5 ${hasLimit ? 'text-orange-600/70' : 'text-blue-600/70'}`}>
+                                            {hasLimit ? `上限 $${track.limit.toLocaleString()}` : '無上限'}
                                           </span>
                                         </div>
-                                        <div className="w-full bg-orange-200/50 rounded-full h-1.5 relative overflow-hidden mb-1.5">
-                                          <div className={`h-1.5 rounded-full absolute top-0 left-0 transition-all ${isMaxedOut ? 'bg-red-400' : 'bg-orange-400'}`} style={{ width: `${percentage}%` }}></div>
-                                        </div>
+                                        {hasLimit && (
+                                          <div className="w-full bg-orange-200/50 rounded-full h-1.5 relative overflow-hidden mb-1.5">
+                                            <div className={`h-1.5 rounded-full absolute top-0 left-0 transition-all ${isMaxedOut ? 'bg-red-400' : 'bg-orange-400'}`} style={{ width: `${percentage}%` }}></div>
+                                          </div>
+                                        )}
                                         <div className="flex justify-between items-center text-[10px] font-mono">
-                                          <span className="text-orange-600/80">已刷 ${track.spent.toLocaleString()}</span>
-                                          <span className={`shrink-0 ${isMaxedOut ? 'text-red-500 font-bold' : 'text-orange-600 font-bold'}`}>
-                                            剩餘 ${remaining.toLocaleString()}
+                                          <span className={hasLimit ? 'text-orange-600/80' : 'text-blue-600/80'}>已刷 ${track.spent.toLocaleString()}</span>
+                                          <span className={`shrink-0 ${hasLimit ? (isMaxedOut ? 'text-red-500 font-bold' : 'text-orange-600 font-bold') : 'text-blue-600 font-bold'}`}>
+                                            {hasLimit ? `剩餘 $${remaining.toLocaleString()}` : '回饋無上限 🚀'}
                                           </span>
                                         </div>
                                       </div>
@@ -827,14 +866,6 @@ export default function App() {
                       <>
                         {usedCards.length === 0 && <p className="text-sm text-gray-400 text-center py-2">本月尚無刷卡紀錄</p>}
                         {usedCards.map(renderCard)}
-                        {unusedCards.length > 0 && (
-                          <div className="mt-2 pt-2">
-                            <button onClick={() => setShowUnusedCards(!showUnusedCards)} className="w-full text-center text-gray-400 text-xs py-2 hover:bg-gray-50 rounded-xl transition flex items-center justify-center gap-1 border border-dashed border-gray-200">
-                              {showUnusedCards ? '▲ 隱藏未刷卡片' : `▼ 展開未刷卡片 (${unusedCards.length})`}
-                            </button>
-                            {showUnusedCards && <div className="mt-4 space-y-5 opacity-75 transition-all">{unusedCards.map(renderCard)}</div>}
-                          </div>
-                        )}
                       </>
                     );
                   })()}
