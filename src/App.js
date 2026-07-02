@@ -297,7 +297,7 @@ export default function App() {
     const [viewYear, viewMonth] = currentMonth.split('-').map(Number);
     const bnkTotals = {}; const crdTotals = {}; const bnkCrdTotals = {}; const tracking = []; let finalCashback = 0; const finalPoints = {}; const bRewards = {};
 
-    Object.keys(bankCards).forEach(b => { bRewards[b] = { cashback: 0, points: {} }; });
+    Object.keys(bankCards).forEach(b => { bRewards[b] = {}; }); // 修正為群組化結構
 
     Object.entries(bankCards).forEach(([bankName, cards]) => {
       cards.forEach(cardInfo => {
@@ -348,15 +348,25 @@ export default function App() {
           let cappedSpent = rule.limit ? Math.min(cycleSpent, rule.limit) : cycleSpent;
 
           if (cappedSpent > 0) {
+            // 轉換舊的英文預設值為中文，並支援使用者自訂字串
+            const creditingRaw = rule.crediting || '當期';
+            const crediting = { current: '當期', next: '次月', other: '累積' }[creditingRaw] || creditingRaw;
+            
             if (rule.type === 'cashback') {
               const earnCash = cappedSpent * ((parseFloat(rule.rate) || 0) / 100);
-              finalCashback += earnCash; bRewards[bankName].cashback += earnCash;
+              finalCashback += earnCash; 
+              
+              const key = `${crediting}_cashback`;
+              if (!bRewards[bankName][key]) bRewards[bankName][key] = { type: 'cashback', unit: '元', crediting, amount: 0 };
+              bRewards[bankName][key].amount += earnCash;
             } else if (rule.type === 'points') {
               let earned = Math.floor(cappedSpent / (parseFloat(rule.spend) || 1)) * (parseFloat(rule.earn) || 0);
               let unit = rule.unit || '點';
               finalPoints[unit] = (finalPoints[unit] || 0) + earned;
-              if (!bRewards[bankName].points[unit]) bRewards[bankName].points[unit] = 0;
-              bRewards[bankName].points[unit] += earned;
+              
+              const key = `${crediting}_points_${unit}`;
+              if (!bRewards[bankName][key]) bRewards[bankName][key] = { type: 'points', unit, crediting, amount: 0 };
+              bRewards[bankName][key].amount += earned;
             }
           }
         });
@@ -507,7 +517,9 @@ export default function App() {
   };
 
   const addRewardRuleToForm = (type) => {
-    const newRule = type === 'cashback' ? { id: `rule-${Date.now()}`, name: '', type: 'cashback', rate: '', limit: '' } : { id: `rule-${Date.now()}`, name: '', type: 'points', spend: '', earn: '', unit: '點', limit: '' };
+    const newRule = type === 'cashback' 
+      ? { id: `rule-${Date.now()}`, name: '', type: 'cashback', rate: '', limit: '', crediting: '當期' } 
+      : { id: `rule-${Date.now()}`, name: '', type: 'points', spend: '', earn: '', unit: '點', limit: '', crediting: '累積' };
     setCardForm(prev => ({ ...prev, rewards: [...prev.rewards, newRule] }));
   };
   const updateRewardRuleInForm = (idx, field, value) => {
@@ -521,7 +533,7 @@ export default function App() {
     if (!cardForm.name.trim()) return;
     const valOrNull = (val) => val ? parseFloat(val) : null;
     const cleanRewards = cardForm.rewards.map(r => ({
-      id: r.id, name: r.name.trim() || '未命名', type: r.type, limit: valOrNull(r.limit),
+      id: r.id, name: r.name.trim() || '未命名', type: r.type, limit: valOrNull(r.limit), crediting: (r.crediting || '當期').trim(),
       ...(r.type === 'cashback' ? { rate: valOrNull(r.rate) || 0 } : { spend: valOrNull(r.spend) || 1, earn: valOrNull(r.earn) || 0, unit: (r.unit || '').trim() || '點' })
     }));
     const cardData = { 
@@ -915,11 +927,21 @@ export default function App() {
                           </div>
                         )}
 
-                        {rewards && (rewards.cashback > 0 || Object.keys(rewards.points).length > 0) && (
-                          <div className="flex flex-wrap items-center gap-2 pt-2 mt-2 border-t border-gray-200/60">
+                        {Object.keys(rewards || {}).length > 0 && (
+                          <div className="flex flex-col gap-2 pt-2 mt-2 border-t border-gray-200/60">
                             <span className="text-[11px] font-bold text-yellow-600 flex items-center gap-1"><Gift size={12} />本期預估賺取:</span>
-                            {rewards.cashback > 0 && <span className="text-[11px] font-bold text-emerald-600 bg-emerald-100/50 px-1.5 py-0.5 rounded shadow-sm">${Math.round(rewards.cashback)} 現金回饋</span>}
-                            {Object.entries(rewards.points).map(([unit, pts]) => <span key={unit} className="text-[11px] font-bold text-indigo-600 bg-indigo-100/50 px-1.5 py-0.5 rounded shadow-sm">{pts} {unit}</span>)}
+                            <div className="flex flex-wrap items-center gap-2">
+                              {Object.values(rewards).map((r, i) => {
+                                const creditingLabel = r.crediting; // 直接使用整理好的字串
+                                const colorClass = r.type === 'cashback' ? 'text-emerald-700 bg-emerald-100/50' : 'text-indigo-700 bg-indigo-100/50';
+                                return (
+                                  <span key={i} className={`text-[11px] font-bold px-1.5 py-0.5 rounded shadow-sm flex items-center gap-1 ${colorClass}`}>
+                                    <span className="opacity-60 bg-white/50 px-1 rounded-sm">[{creditingLabel}]</span>
+                                    {Math.round(r.amount)} {r.unit}
+                                  </span>
+                                )
+                              })}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1076,8 +1098,21 @@ export default function App() {
                                   <div className="space-y-2">
                                     {cardForm.rewards.map((rule, rIdx) => (
                                       <div key={rIdx} className="bg-white border border-gray-200 rounded-lg p-2 shadow-sm">
-                                        <div className="flex justify-between items-center mb-2">
-                                          <input type="text" placeholder="回饋名稱" value={rule.name ?? ''} onChange={(e) => updateRewardRuleInForm(rIdx, 'name', e.target.value)} className="font-bold text-sm text-gray-800 border-b border-gray-200 outline-none w-2/3 pb-1 min-w-0"/>
+                                        <div className="flex justify-between items-center mb-2 gap-2">
+                                          <input type="text" placeholder="回饋名稱" value={rule.name ?? ''} onChange={(e) => updateRewardRuleInForm(rIdx, 'name', e.target.value)} className="font-bold text-sm text-gray-800 border-b border-gray-200 outline-none flex-1 pb-1 min-w-0"/>
+                                          
+                                          <div className="flex items-center gap-1 shrink-0 bg-gray-50 px-1.5 py-1 rounded border border-gray-200">
+                                            <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">入帳</span>
+                                            <input 
+                                               type="text" 
+                                               value={rule.crediting === 'current' ? '當期' : rule.crediting === 'next' ? '次月' : rule.crediting === 'other' ? '累積' : (rule.crediting ?? '當期')} 
+                                               onChange={(e) => updateRewardRuleInForm(rIdx, 'crediting', e.target.value)} 
+                                               className="text-[11px] text-indigo-700 outline-none bg-transparent font-bold w-12 focus:w-20 transition-all"
+                                               placeholder="自訂"
+                                               maxLength={8}
+                                            />
+                                          </div>
+                                          
                                           <button onClick={() => removeRewardRuleFromForm(rIdx)} className="text-red-400 hover:text-red-600 shrink-0"><X size={16}/></button>
                                         </div>
                                         {rule.type === 'cashback' ? (
@@ -1096,7 +1131,16 @@ export default function App() {
                                   <div className="space-y-1.5 flex-1 min-w-0">
                                     <div className="font-bold text-gray-800 text-base flex items-center gap-2"><div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${card.color || 'bg-gray-100 text-gray-600'}`}><CardIcon size={12}/></div><span className="truncate">{card.name}</span>{card.rewards?.length > 0 && card.rewardCycle === 'billing' && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-normal shrink-0">依結帳</span>}</div>
                                     <div className="flex flex-col gap-1 mt-1 pl-8">
-                                      {card.rewards?.map((r, i) => (<span key={i} className={`text-[10px] font-medium px-1.5 py-0.5 rounded self-start truncate max-w-full ${r.type === 'cashback' ? 'text-emerald-700 bg-emerald-50 border border-emerald-100' : 'text-indigo-700 bg-indigo-50 border border-indigo-100'}`}>【{r.name}】 {r.type==='cashback' ? `${r.rate}%` : `滿${r.spend}送${r.earn}${r.unit}`} {r.limit ? `(上限刷$${r.limit})`:''}</span>))}
+                                      {card.rewards?.map((r, i) => {
+                                        // 轉換舊字串，如果是新的自訂字串則直接顯示
+                                        const creditingLabel = { current: '當期', next: '次月', other: '累積' }[r.crediting] || r.crediting || '當期';
+                                        return (
+                                          <span key={i} className={`text-[10px] font-medium px-1.5 py-0.5 rounded self-start truncate max-w-full flex items-center gap-1 ${r.type === 'cashback' ? 'text-emerald-700 bg-emerald-50 border border-emerald-100' : 'text-indigo-700 bg-indigo-50 border border-indigo-100'}`}>
+                                            <span className="opacity-70 font-bold">[{creditingLabel}]</span>
+                                            <span>【{r.name}】 {r.type==='cashback' ? `${r.rate}%` : `滿${r.spend}送${r.earn}${r.unit}`} {r.limit ? `(上限刷$${r.limit})`:''}</span>
+                                          </span>
+                                        );
+                                      })}
                                       {(!card.rewards || card.rewards.length === 0) && <span className="text-[10px] text-gray-400">無回饋</span>}
                                     </div>
                                   </div>
