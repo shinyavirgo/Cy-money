@@ -311,44 +311,30 @@ export default function App() {
           billStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; billEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${new Date(viewYear, viewMonth, 0).getDate()}`; 
         }
 
-        expenses.forEach(exp => {
-          if (exp.bank === bankName && exp.card === cardInfo.name && exp.date >= billStartStr && exp.date <= billEndStr) {
-            const amt = parseFloat(exp.amount) || 0;
-            bnkTotals[bankName] = (bnkTotals[bankName] || 0) + amt; 
-            crdTotals[cardInfo.name] = (crdTotals[cardInfo.name] || 0) + amt;
-            
-            if(!bnkCrdTotals[bankName]) bnkCrdTotals[bankName] = {};
-            bnkCrdTotals[bankName][cardInfo.name] = (bnkCrdTotals[bankName][cardInfo.name] || 0) + amt;
-          }
+        // 獨立抓出「落在這張對帳單」內的所有消費
+        const statementExpenses = expenses.filter(exp => exp.bank === bankName && exp.card === cardInfo.name && exp.date >= billStartStr && exp.date <= billEndStr);
+
+        statementExpenses.forEach(exp => {
+          const amt = parseFloat(exp.amount) || 0;
+          bnkTotals[bankName] = (bnkTotals[bankName] || 0) + amt; 
+          crdTotals[cardInfo.name] = (crdTotals[cardInfo.name] || 0) + amt;
+          
+          if(!bnkCrdTotals[bankName]) bnkCrdTotals[bankName] = {};
+          bnkCrdTotals[bankName][cardInfo.name] = (bnkCrdTotals[bankName][cardInfo.name] || 0) + amt;
         });
 
         if (!cardInfo.rewards || cardInfo.rewards.length === 0) return;
 
-        let rewardStartStr, rewardEndStr, label;
-        if (cardInfo.rewardCycle === 'billing' && cardInfo.billing !== '無') {
-          const cycleInfo = getBillingCycleDates(viewYear, viewMonth, cardInfo.billing);
-          if (cycleInfo) { rewardStartStr = cycleInfo.startStr; rewardEndStr = cycleInfo.endStr; label = `結帳週期 (${cycleInfo.cycleLabel})`; } 
-          else { rewardStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; rewardEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${new Date(viewYear, viewMonth, 0).getDate()}`; label = '月曆月'; }
-        } else {
-          rewardStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; rewardEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${new Date(viewYear, viewMonth, 0).getDate()}`; label = '月曆月';
-        }
-
+        // 【修正核心】對帳單區塊：預估回饋金必須「完全貼合」這張對帳單內實際出現的消費項目
         cardInfo.rewards.forEach(rule => {
           let cycleSpent = 0;
-          // 為了準確計算「上限」，我們還是得去抓整個週期 (可能包含上個月) 的消費
-          expenses.forEach(exp => {
-            if (exp.bank === bankName && exp.card === cardInfo.name && exp.date >= rewardStartStr && exp.date <= rewardEndStr && exp.appliedRewards?.includes(rule.id)) cycleSpent += (parseFloat(exp.amount) || 0);
+          statementExpenses.forEach(exp => {
+            if (exp.appliedRewards?.includes(rule.id)) cycleSpent += (parseFloat(exp.amount) || 0);
           });
-          let rateText = rule.type === 'cashback' ? `${rule.rate}%` : `滿${rule.spend}送${rule.earn}${rule.unit}`;
-          
-          if (cycleSpent > 0) {
-            tracking.push({ cardName: cardInfo.name, ruleName: rule.name, spent: cycleSpent, limit: rule.limit, cycleLabel: label, rateText });
-          }
           
           let cappedSpent = rule.limit ? Math.min(cycleSpent, rule.limit) : cycleSpent;
 
           if (cappedSpent > 0) {
-            // 轉換舊的英文預設值為中文，並支援使用者自訂字串
             const creditingRaw = rule.crediting || '當期';
             const crediting = { current: '當期', next: '次月', other: '累積' }[creditingRaw] || creditingRaw;
             
@@ -368,6 +354,31 @@ export default function App() {
               if (!bRewards[bankName][key]) bRewards[bankName][key] = { type: 'points', unit, crediting, amount: 0 };
               bRewards[bankName][key].amount += earned;
             }
+          }
+        });
+
+        // 狀態追蹤區塊 (Tracking)：維持依照真實設定 (月曆月或結帳月) 來抓取對應期間的所有消費
+        let rewardStartStr, rewardEndStr, label;
+        if (cardInfo.rewardCycle === 'billing' && cardInfo.billing !== '無') {
+          rewardStartStr = billStartStr; 
+          rewardEndStr = billEndStr; 
+          const cycleInfo = getBillingCycleDates(viewYear, viewMonth, cardInfo.billing);
+          label = cycleInfo ? `結帳週期 (${cycleInfo.cycleLabel})` : '結帳週期';
+        } else {
+          rewardStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`; 
+          rewardEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${new Date(viewYear, viewMonth, 0).getDate()}`; 
+          label = '月曆月';
+        }
+
+        cardInfo.rewards.forEach(rule => {
+          let trackSpent = 0;
+          expenses.forEach(exp => {
+            if (exp.bank === bankName && exp.card === cardInfo.name && exp.date >= rewardStartStr && exp.date <= rewardEndStr && exp.appliedRewards?.includes(rule.id)) trackSpent += (parseFloat(exp.amount) || 0);
+          });
+          
+          if (trackSpent > 0) {
+            let rateText = rule.type === 'cashback' ? `${rule.rate}%` : `滿${rule.spend}送${rule.earn}${rule.unit}`;
+            tracking.push({ cardName: cardInfo.name, ruleName: rule.name, spent: trackSpent, limit: rule.limit, cycleLabel: label, rateText });
           }
         });
       });
