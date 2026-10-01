@@ -70,18 +70,39 @@ try {
 
 const extractBillingDay = (billingStr) => {
   if (!billingStr || billingStr === '無') return 999;
+  if (billingStr.includes('最後一天') || billingStr.includes('月底')) return 31; // 給定一個大數字作為排序依據
   const match = billingStr.match(/\d+/);
   return match ? parseInt(match[0], 10) : 999;
 };
 
 const getBillingCycleDates = (viewYear, viewMonthNum, billingDayStr) => {
-  const match = billingDayStr.match(/\d+/);
-  if (!match) return null;
-  const day = parseInt(match[0], 10);
-  const endDate = new Date(viewYear, viewMonthNum - 1, day);
-  const startDate = new Date(viewYear, viewMonthNum - 2, day + 1);
+  if (!billingDayStr || billingDayStr === '無') return null;
+
+  let day;
+  if (billingDayStr.includes('最後一天') || billingDayStr.includes('月底')) {
+    // 若為最後一天，我們將 day 設為當月的最後一天
+    day = new Date(viewYear, viewMonthNum - 1, 0).getDate();
+  } else {
+    const match = billingDayStr.match(/\d+/);
+    if (!match) return null;
+    day = parseInt(match[0], 10);
+  }
+
+  // 為了處理不同月份天數不同的情況，結帳日若大於該月天數，則以該月最後一天為準
+  const endMonthDays = new Date(viewYear, viewMonthNum - 1, 0).getDate();
+  const actualEndDay = Math.min(day, endMonthDays);
+  const endDate = new Date(viewYear, viewMonthNum - 1, actualEndDay);
+
+  const startMonthDays = new Date(viewYear, viewMonthNum - 2, 0).getDate();
+  const actualStartDay = Math.min(day, startMonthDays);
+  const startDate = new Date(viewYear, viewMonthNum - 2, actualStartDay + 1);
+
   const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  return { startStr: formatDate(startDate), endStr: formatDate(endDate), cycleLabel: `${startDate.getMonth()+1}/${startDate.getDate()} ~ ${endDate.getMonth()+1}/${endDate.getDate()}` };
+  return { 
+    startStr: formatDate(startDate), 
+    endStr: formatDate(endDate), 
+    cycleLabel: `${startDate.getMonth()+1}/${startDate.getDate()} ~ ${endDate.getMonth()+1}/${endDate.getDate()}` 
+  };
 };
 
 const GlobalStyles = () => (
@@ -790,9 +811,16 @@ export default function App() {
 
                     const usedCards = []; 
                     cardsToTrack.forEach(card => {
+                      // 【關鍵修正】額度追蹤顯示條件：包含整個結帳週期，而不只是本曆月
+                      // 1. 檢查本曆月有無使用
                       const usedInCalendar = calendarCardTotals[card.name] || 0;
-                      // 只要「本曆月」有刷卡動作，才顯示這個區塊 (解決跨月幽靈卡片問題)
-                      if (usedInCalendar > 0) usedCards.push(card);
+                      // 2. 檢查對帳單(結帳週期)有無使用 (這樣上個月刷的，只要在當期帳單內就會顯示)
+                      const usedInStatement = cardTotals[card.name] || 0;
+                      // 3. 檢查回饋追蹤是否有使用
+                      const hasTrackingSpent = rewardLimitTracking.some(t => t.cardName === card.name && t.spent > 0);
+                      
+                      // 只要三者有任一符合，就顯示該卡片的進度
+                      if (usedInCalendar > 0 || usedInStatement > 0 || hasTrackingSpent) usedCards.push(card);
                     });
 
                     const renderCard = (card) => {
