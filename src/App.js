@@ -363,16 +363,17 @@ export default function App() {
               const earnCash = cappedSpent * ((parseFloat(rule.rate) || 0) / 100);
               finalCashback += earnCash; 
               
-              const key = `${crediting}_cashback`;
-              if (!bRewards[bankName][key]) bRewards[bankName][key] = { type: 'cashback', unit: '元', crediting, amount: 0 };
+              // 改變 key 的結構，加入 rule.name 來獨立紀錄每個回饋項目
+              const key = `${crediting}_cashback_${rule.name}`;
+              if (!bRewards[bankName][key]) bRewards[bankName][key] = { type: 'cashback', unit: '元', crediting, name: rule.name, amount: 0 };
               bRewards[bankName][key].amount += earnCash;
             } else if (rule.type === 'points') {
               let earned = Math.floor(cappedSpent / (parseFloat(rule.spend) || 1)) * (parseFloat(rule.earn) || 0);
               let unit = rule.unit || '點';
               finalPoints[unit] = (finalPoints[unit] || 0) + earned;
               
-              const key = `${crediting}_points_${unit}`;
-              if (!bRewards[bankName][key]) bRewards[bankName][key] = { type: 'points', unit, crediting, amount: 0 };
+              const key = `${crediting}_points_${unit}_${rule.name}`;
+              if (!bRewards[bankName][key]) bRewards[bankName][key] = { type: 'points', unit, crediting, name: rule.name, amount: 0 };
               bRewards[bankName][key].amount += earned;
             }
           }
@@ -975,7 +976,7 @@ export default function App() {
                                 const colorClass = r.type === 'cashback' ? 'text-emerald-700 bg-emerald-100/50' : 'text-indigo-700 bg-indigo-100/50';
                                 return (
                                   <span key={i} className={`text-[11px] font-bold px-1.5 py-0.5 rounded shadow-sm flex items-center gap-1 ${colorClass}`}>
-                                    <span className="opacity-60 bg-white/50 px-1 rounded-sm">[{creditingLabel}]</span>
+                                    <span className="opacity-60 bg-white/50 px-1 rounded-sm">[{creditingLabel}] {r.name}</span>
                                     {Math.round(r.amount)} {r.unit}
                                   </span>
                                 )
